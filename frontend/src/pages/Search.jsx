@@ -1,206 +1,170 @@
-import React, { useState } from 'react'
-import { searchBySelfie } from '../utils/api'
-import toast from 'react-hot-toast'
+import React, { useState } from 'react';
+import { searchByFace } from '../utils/api';
 
 export default function Search() {
-  const [selfie, setSelfie] = useState(null)       // { file, preview }
-  const [loading, setLoading] = useState(false)
-  const [results, setResults] = useState(null)     // null = not searched yet
+  const [selfie, setSelfie] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState('');
 
-  function handleFileChange(file) {
-    if (!file) return
-    setSelfie({
-      file,
-      preview: URL.createObjectURL(file),
-    })
-    setResults(null) // Reset previous results
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setSelfie(file);
+    setPreview(URL.createObjectURL(file));
+    setResults(null);
+    setError('');
   }
 
   async function handleSearch() {
-    if (!selfie) {
-      toast.error('Please select a selfie first')
-      return
-    }
-    setLoading(true)
+    if (!selfie) return;
+    setSearching(true);
+    setError('');
     try {
-      const data = await searchBySelfie(selfie.file)
-      setResults(data)
-      if (data.matchCount === 0) {
-        toast('No photos found yet — try again later as more guests upload!', { icon: '🤷' })
-      } else {
-        toast.success(`Found ${data.matchCount} photo${data.matchCount !== 1 ? 's' : ''} with you in them!`)
-      }
+      const data = await searchByFace(selfie);
+      setResults(data);
     } catch (err) {
-      toast.error('Search failed. Please try again.')
+      setError(err.response?.data?.error || err.message || 'Search failed. Please try again.');
     } finally {
-      setLoading(false)
+      setSearching(false);
     }
+  }
+
+  function handleDownload(url, idx) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wedding-photo-${idx + 1}.jpg`;
+    a.click();
   }
 
   return (
     <div className="page">
-      <div className="container" style={{ maxWidth: 720 }}>
-        <h1 style={styles.title}>Find My Photos</h1>
-        <p style={styles.subtitle}>
-          Upload a selfie and we'll find every photo you appear in using AI facial recognition.
-          <br />
-          <span style={{ fontSize: 13, color: '#bbb' }}>
-            🔒 Your selfie is never stored — it's only used for matching.
-          </span>
-        </p>
+      <h1 style={styles.title}>🔍 Find My Photos</h1>
+      <p style={styles.subtitle}>
+        Upload a selfie and our AI will find every photo you appear in — instantly.
+      </p>
 
-        {/* Selfie Upload */}
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h3 style={styles.stepTitle}>Step 1: Upload a Selfie</h3>
-          <div style={styles.selfieArea}>
-            {selfie ? (
-              <div style={{ position: 'relative', display: 'inline-block' }}>
-                <img src={selfie.preview} alt="Your selfie" style={styles.selfiePreview} />
-                <button
-                  onClick={() => { setSelfie(null); setResults(null) }}
-                  style={styles.removeSelfie}
-                >✕</button>
-              </div>
-            ) : (
-              <div style={styles.selfiePrompt}>
-                <div style={{ fontSize: 48, marginBottom: 8 }}>🤳</div>
-                <p style={{ color: '#aaa', fontSize: 14 }}>Select or take a selfie</p>
-              </div>
-            )}
-          </div>
+      <div style={styles.layout}>
+        {/* Selfie upload panel */}
+        <div className="card" style={styles.uploadPanel}>
+          <h3 style={styles.panelTitle}>Your Selfie</h3>
+          <p style={styles.hint}>Use a clear, front-facing photo with good lighting for best results.</p>
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginTop: 20 }}>
-            {/* Camera selfie (front camera on mobile) */}
-            <label className="btn btn-primary">
-              📷 Take Selfie
-              <input type="file" accept="image/*" capture="user" style={{ display: 'none' }}
-                onChange={e => handleFileChange(e.target.files?.[0])} />
-            </label>
+          {preview ? (
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <img src={preview} alt="Your selfie" style={styles.selfiePreview} />
+              <button
+                onClick={() => { setSelfie(null); setPreview(null); setResults(null); }}
+                style={styles.clearBtn}
+              >
+                Choose different photo
+              </button>
+            </div>
+          ) : (
+            <div style={styles.selfieOptions}>
+              <label style={styles.optionBtn}>
+                📷 Take Selfie
+                <input type="file" accept="image/*" capture="user" onChange={handleFileSelect} style={{ display: 'none' }} />
+              </label>
+              <label style={styles.optionBtn}>
+                🖼️ Upload Photo
+                <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
+              </label>
+            </div>
+          )}
 
-            {/* File picker */}
-            <label className="btn btn-secondary">
-              🖼️ Choose Photo
-              <input type="file" accept="image/*" style={{ display: 'none' }}
-                onChange={e => handleFileChange(e.target.files?.[0])} />
-            </label>
-          </div>
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <button
+            className="btn-primary"
+            onClick={handleSearch}
+            disabled={!selfie || searching}
+            style={{ width: '100%' }}
+          >
+            {searching ? '🔍 Searching...' : 'Find My Photos →'}
+          </button>
+
+          <p style={styles.privacyNote}>
+            🔒 Your selfie is never stored. It's used only for matching and then discarded.
+          </p>
         </div>
 
-        {/* Search button */}
-        <button
-          className="btn btn-primary"
-          onClick={handleSearch}
-          disabled={!selfie || loading}
-          style={{ width: '100%', justifyContent: 'center', fontSize: 16, padding: '14px' }}
-        >
-          {loading ? (
-            <><span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> Searching...</>
-          ) : (
-            '🔍 Find My Photos'
-          )}
-        </button>
-
-        {/* Results */}
-        {results && (
-          <div style={{ marginTop: 40 }}>
-            <h2 style={styles.stepTitle}>
-              {results.matchCount > 0
-                ? `Found ${results.matchCount} Photo${results.matchCount !== 1 ? 's' : ''} 🎉`
-                : 'No Photos Found Yet'}
-            </h2>
-
-            {results.matchCount === 0 && (
-              <div className="alert" style={{ background: '#fdf8f0', color: '#92400e', border: '1px solid #fde68a' }}>
-                You haven't been captured yet, or the photos with you haven't been uploaded. 
-                Check back later as more guests share their photos!
-              </div>
-            )}
-
-            <div className="photo-grid" style={{ marginTop: 20 }}>
-              {results.photos?.map((photo, i) => (
-                <PhotoResult key={i} photo={photo} />
-              ))}
+        {/* Results panel */}
+        <div style={styles.resultsPanel}>
+          {results === null && !searching && (
+            <div style={styles.emptyState}>
+              <div style={{ fontSize: '64px' }}>🤳</div>
+              <p>Your matching photos will appear here</p>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+          )}
 
-function PhotoResult({ photo }) {
-  return (
-    <div className="photo-card">
-      <img
-        src={photo.url}
-        alt="Wedding photo"
-        loading="lazy"
-        style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
-        onError={e => { e.target.style.background = '#f0e4e4'; e.target.alt = '(expired)' }}
-      />
-      <div className="photo-card-footer">
-        <a
-          href={photo.url}
-          download
-          className="btn btn-secondary"
-          style={{ fontSize: 12, padding: '6px 14px' }}
-        >
-          ⬇️ Download
-        </a>
+          {searching && (
+            <div style={styles.emptyState}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+              <p>Scanning photos for your face...</p>
+            </div>
+          )}
+
+          {results && (
+            <>
+              <h3 style={styles.resultsTitle}>
+                {results.matchCount > 0
+                  ? `Found ${results.matchCount} photo${results.matchCount !== 1 ? 's' : ''} of you! 🎉`
+                  : 'No photos found yet'}
+              </h3>
+              {results.matchCount === 0 && (
+                <div className="alert alert-info">
+                  {results.message || "Try again after more photos have been uploaded, or use a clearer selfie."}
+                </div>
+              )}
+              <div style={styles.photoGrid}>
+                {results.photos?.map((photo, idx) => (
+                  <div key={idx} style={styles.photoCard}>
+                    <img src={photo.url} alt={`Match ${idx + 1}`} style={styles.photoThumb} loading="lazy" />
+                    <div style={styles.photoActions}>
+                      <button onClick={() => handleDownload(photo.url, idx)} style={styles.downloadBtn}>
+                        ⬇️ Download
+                      </button>
+                      <a href={photo.url} target="_blank" rel="noreferrer" style={styles.viewLink}>
+                        View full size
+                      </a>
+                    </div>
+                    <p style={styles.expiryText}>Link valid until {new Date(photo.expiresAt).toLocaleDateString()}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
-  )
+  );
 }
 
 const styles = {
-  title: {
-    fontFamily: "'Cormorant Garamond', serif",
-    fontSize: 40,
-    fontWeight: 400,
-    color: '#3a3a3a',
-    marginBottom: 8,
+  title: { fontSize: '28px', fontWeight: '400', color: '#3a3a3a', margin: '0 0 8px' },
+  subtitle: { color: '#888', marginBottom: '28px' },
+  layout: { display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '24px', alignItems: 'start' },
+  uploadPanel: { position: 'sticky', top: '80px' },
+  panelTitle: { fontSize: '18px', fontWeight: '400', color: '#3a3a3a', margin: '0 0 8px' },
+  hint: { fontSize: '13px', color: '#888', margin: '0 0 20px', lineHeight: '1.5' },
+  selfiePreview: { width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #d4a7a7', marginBottom: '12px' },
+  clearBtn: { display: 'block', margin: '0 auto', background: 'none', border: 'none', color: '#aaa', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' },
+  selfieOptions: { display: 'flex', gap: '12px', marginBottom: '20px' },
+  optionBtn: {
+    flex: 1, display: 'block', padding: '12px', border: '1px solid #d4a7a7', borderRadius: '8px',
+    textAlign: 'center', cursor: 'pointer', fontSize: '14px', color: '#c49a9a', background: '#fdf8f8',
   },
-  subtitle: { color: '#888', marginBottom: 32, lineHeight: 1.7 },
-  stepTitle: {
-    fontFamily: "'Cormorant Garamond', serif",
-    fontSize: 24,
-    fontWeight: 400,
-    color: '#3a3a3a',
-    marginBottom: 20,
-  },
-  selfieArea: { display: 'flex', justifyContent: 'center', minHeight: 160 },
-  selfiePrompt: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 160,
-    height: 160,
-    background: '#fdf7f7',
-    borderRadius: 12,
-    border: '2px dashed #e8c5c5',
-  },
-  selfiePreview: {
-    width: 160,
-    height: 160,
-    objectFit: 'cover',
-    borderRadius: 12,
-    border: '3px solid #d4a7a7',
-  },
-  removeSelfie: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    background: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '50%',
-    width: 24,
-    height: 24,
-    cursor: 'pointer',
-    fontSize: 12,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-}
+  privacyNote: { fontSize: '12px', color: '#aaa', textAlign: 'center', marginTop: '12px', lineHeight: '1.5' },
+  resultsPanel: { minHeight: '300px' },
+  emptyState: { textAlign: 'center', padding: '60px 20px', color: '#aaa' },
+  resultsTitle: { fontSize: '20px', fontWeight: '400', color: '#3a3a3a', margin: '0 0 16px' },
+  photoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' },
+  photoCard: { background: '#fff', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' },
+  photoThumb: { width: '100%', height: '160px', objectFit: 'cover', display: 'block' },
+  photoActions: { padding: '10px', display: 'flex', gap: '8px', alignItems: 'center' },
+  downloadBtn: { background: 'none', border: '1px solid #d4a7a7', color: '#c49a9a', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontSize: '12px' },
+  viewLink: { fontSize: '12px', color: '#aaa', textDecoration: 'none' },
+  expiryText: { fontSize: '11px', color: '#ccc', padding: '0 10px 8px', margin: 0 },
+};

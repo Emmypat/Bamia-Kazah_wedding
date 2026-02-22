@@ -1,85 +1,70 @@
 # Deployment Guide
 
-Step-by-step guide to deploy the Wedding Photo Platform on AWS.
-
----
+Step-by-step instructions to deploy the Wedding Photo Platform to AWS.
 
 ## Prerequisites
 
-Install these tools before starting:
+Install these tools on your machine:
 
-| Tool | Version | Install |
-|---|---|---|
-| AWS CLI | >= 2.x | https://aws.amazon.com/cli/ |
-| Terraform | >= 1.5 | https://terraform.io/downloads |
-| Node.js | >= 18 | https://nodejs.org |
-| Python | >= 3.11 | https://python.org |
+```bash
+# AWS CLI
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+unzip awscliv2.zip && sudo ./aws/install
 
-### Configure AWS CLI
+# Terraform
+# Download from: https://developer.hashicorp.com/terraform/downloads
+
+# Node.js (for frontend)
+# Download from: https://nodejs.org (v18+)
+
+# Python 3.11 (for local Lambda testing)
+# Download from: https://python.org
+```
+
+---
+
+## Step 1 — Configure AWS CLI
 
 ```bash
 aws configure
-# Enter: AWS Access Key ID, Secret Key, Region (eu-west-1), Output (json)
+# Enter:
+# AWS Access Key ID: (from IAM user)
+# AWS Secret Access Key: (from IAM user)
+# Default region: eu-west-1
+# Default output format: json
 ```
 
-Your IAM user needs these permissions:
-- `AmazonS3FullAccess`
-- `AmazonDynamoDBFullAccess`
-- `AWSLambdaFullAccess`
-- `AmazonAPIGatewayAdministrator`
-- `CloudFrontFullAccess`
-- `AmazonCognitoPowerUser`
-- `AmazonRekognitionFullAccess`
-- `AmazonSESFullAccess`
-- `AmazonSNSFullAccess`
-- `IAMFullAccess`
+**IAM permissions needed:**
+- AmazonS3FullAccess
+- AmazonDynamoDBFullAccess
+- AWSLambda_FullAccess
+- AmazonAPIGatewayAdministrator
+- AmazonRekognitionFullAccess
+- AmazonCognitoPowerUser
+- CloudFrontFullAccess
+- AmazonSNSFullAccess
+- AmazonSESFullAccess
+- IAMFullAccess
+- CloudWatchLogsFullAccess
 
 ---
 
-## Step 1: Clone the Repository
+## Step 2 — Bootstrap Terraform State
+
+Create the S3 bucket and DynamoDB table for Terraform state storage.
+Run these commands ONCE before `terraform init`:
 
 ```bash
-git clone https://github.com/Emmypat/wedding-photo-platform
-cd wedding-photo-platform
-```
-
----
-
-## Step 2: Configure Terraform Variables
-
-```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-nano terraform.tfvars  # or use any editor
-```
-
-Fill in at minimum:
-- `couple_email_1` and `couple_email_2`
-- `notification_email_from` (the sender email)
-- `couple_name` and `wedding_date`
-
----
-
-## Step 3: Bootstrap Terraform State Backend
-
-Run these commands **once** before `terraform init`:
-
-```bash
-# Create S3 bucket for Terraform state
+# Create S3 bucket for state
 aws s3api create-bucket \
   --bucket wedding-photos-terraform-state \
   --region eu-west-1 \
   --create-bucket-configuration LocationConstraint=eu-west-1
 
-# Enable versioning (protects state file history)
+# Enable versioning on the bucket
 aws s3api put-bucket-versioning \
   --bucket wedding-photos-terraform-state \
   --versioning-configuration Status=Enabled
-
-# Enable encryption
-aws s3api put-bucket-encryption \
-  --bucket wedding-photos-terraform-state \
-  --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 
 # Create DynamoDB table for state locking
 aws dynamodb create-table \
@@ -90,149 +75,151 @@ aws dynamodb create-table \
   --region eu-west-1
 ```
 
-> **Note:** If you just want to get started quickly, comment out the `backend` block in `terraform/backend.tf` to use local state instead.
+> **Alternative:** Comment out the `backend "s3"` block in `terraform/backend.tf` to use local state (simpler for solo development, but don't lose the `.tfstate` file!).
 
 ---
 
-## Step 4: Deploy Infrastructure
+## Step 3 — Configure Variables
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+nano terraform.tfvars  # Fill in your values
+```
+
+Key values to set:
+- `couple_name` — e.g. `"Sarah & James"`
+- `wedding_date` — e.g. `"2025-06-15"`
+- `couple_email_1` / `couple_email_2`
+- `notification_email_from` — must be verified in SES
+
+---
+
+## Step 4 — Deploy Infrastructure
 
 ```bash
 cd terraform
 
-# Initialise Terraform (downloads providers, configures backend)
+# Initialise: downloads providers and modules
 terraform init
 
-# Preview what will be created (safe, no changes)
+# Preview changes (always review before applying!)
 terraform plan
 
 # Deploy! (~5-10 minutes)
 terraform apply
-# Type 'yes' when prompted
-
-# Save the outputs — you'll need them for frontend config
-terraform output
 ```
 
-Note the outputs:
-- `cloudfront_url` — share this with guests
-- `api_url` — API Gateway URL
-- `cognito_user_pool_id`
-- `cognito_user_pool_client_id`
-- `frontend_bucket_name`
-- `cloudfront_distribution_id`
+Note the outputs after apply — you'll need these URLs.
 
 ---
 
-## Step 5: Verify SES Email
+## Step 5 — Verify SES Email
 
-1. Go to AWS Console → **SES** → **Verified identities**
-2. Click **Create identity** → **Email address**
-3. Enter your `notification_email_from` address
+Before SES can send emails, verify your sender address:
+
+1. Go to **AWS Console → SES → Verified identities**
+2. Click **Create identity**
+3. Select **Email address**, enter your `notification_email_from`
 4. Check your email and click the verification link
 
-> **Sandbox mode:** By default, SES can only send to verified emails. To send to all guests, go to: **SES → Account dashboard → Request production access**
+> **SES Sandbox:** By default, SES can only send to verified addresses. To send to all guests, submit a **Production Access** request: AWS Console → SES → Account dashboard → Request production access.
 
 ---
 
-## Step 6: Build & Deploy Frontend
+## Step 6 — Build & Deploy Frontend
 
 ```bash
-cd ../frontend
+cd frontend
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with values from terraform output:
-#   VITE_API_URL = the api_url output
-#   VITE_COGNITO_USER_POOL_ID = cognito_user_pool_id output
-#   VITE_COGNITO_CLIENT_ID = cognito_user_pool_client_id output
-
-# Install dependencies and build
+# Install dependencies
 npm install
+
+# Create environment config from Terraform outputs
+cp .env.example .env.local
+# Edit .env.local with values from `terraform output`
+
+# Build for production
 npm run build
 
 # Deploy to S3
-BUCKET=$(cd ../terraform && terraform output -raw frontend_bucket_name)
-aws s3 sync build/ s3://$BUCKET --delete
+aws s3 sync build/ s3://$(cd ../terraform && terraform output -raw frontend_bucket_name)
 
-# Invalidate CloudFront cache so guests get the new version
-DIST_ID=$(cd ../terraform && terraform output -raw cloudfront_distribution_id)
-aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+# Invalidate CloudFront cache (so new files are served immediately)
+aws cloudfront create-invalidation \
+  --distribution-id $(cd ../terraform && terraform output -raw cloudfront_distribution_id) \
+  --paths "/*"
 ```
 
 ---
 
-## Step 7: Register Couple Faces
+## Step 7 — Create Admin User
 
-This step tells the AI which faces belong to the couple.
+Create an admin account for the couple/photographer:
 
 ```bash
-# First, create an admin user in Cognito
-USER_POOL=$(cd terraform && terraform output -raw cognito_user_pool_id)
-aws cognito-idp admin-create-user \
-  --user-pool-id $USER_POOL \
-  --username admin@youremail.com \
-  --user-attributes Name=email,Value=admin@youremail.com Name=name,Value=Admin \
-  --temporary-password TempPass123!
+USER_POOL_ID=$(cd terraform && terraform output -raw cognito_user_pool_id)
 
-# Set a permanent password
-aws cognito-idp admin-set-user-password \
-  --user-pool-id $USER_POOL \
-  --username admin@youremail.com \
-  --password YourPermanentPassword123! \
-  --permanent
+aws cognito-idp admin-create-user \
+  --user-pool-id $USER_POOL_ID \
+  --username admin@yourwedding.com \
+  --user-attributes Name=email,Value=admin@yourwedding.com Name=name,Value="Wedding Admin" \
+  --temporary-password "Temp1234!" \
+  --message-action SUPPRESS
 
 # Add to admins group
 aws cognito-idp admin-add-user-to-group \
-  --user-pool-id $USER_POOL \
-  --username admin@youremail.com \
+  --user-pool-id $USER_POOL_ID \
+  --username admin@yourwedding.com \
   --group-name admins
 ```
 
-Then use the `/register-couple` API endpoint (see docs/API.md) to upload a clear photo of each couple member.
+---
+
+## Step 8 — Register Couple Faces
+
+1. Log into the platform with your admin account
+2. Call the `/register-couple` API endpoint with a clear photo of each partner:
+
+```bash
+API_URL=$(cd terraform && terraform output -raw api_url)
+TOKEN="<your-jwt-token-from-login>"
+
+# Register Partner 1
+curl -X POST "$API_URL/register-couple" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "<base64-encoded-photo>",
+    "contentType": "image/jpeg",
+    "personName": "Sarah"
+  }'
+
+# Register Partner 2 (same process)
+```
+
+See `docs/API.md` for full API reference.
 
 ---
 
-## Step 8: Test the Platform
+## Step 9 — Test
 
-```bash
-# Health check
-curl $(cd terraform && terraform output -raw api_url)/health
-
-# Expected: {"status": "ok", "timestamp": "..."}
-```
-
-Then:
-1. Visit the CloudFront URL in your browser
+1. Open your CloudFront URL (from `terraform output cloudfront_url`)
 2. Register a guest account
 3. Upload a test photo
-4. Use search with a selfie
+4. Try the selfie search
+5. Register couple faces and verify the email notification flow
 
 ---
 
-## Updating the Platform
+## Teardown (After the Wedding)
 
-To update Lambda code after changes:
-
-```bash
-cd terraform
-terraform apply  # Re-zips and deploys Lambda code automatically
-```
-
-To update frontend:
-```bash
-cd frontend
-npm run build
-aws s3 sync build/ s3://YOUR_BUCKET --delete
-aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
-```
-
----
-
-## Teardown
-
-To destroy all AWS resources (⚠️ this deletes all photos!):
+When you no longer need the platform:
 
 ```bash
 cd terraform
+
+# ⚠️ This deletes EVERYTHING including photos!
+# Make sure all guests have downloaded their photos first.
 terraform destroy
 ```

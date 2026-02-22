@@ -1,126 +1,150 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { registerUser, confirmRegistration } from '../utils/auth'
-import toast from 'react-hot-toast'
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { registerGuest, confirmRegistration, login } from '../utils/auth';
 
 export default function Register() {
-  const navigate = useNavigate()
-  const [step, setStep] = useState('register') // 'register' | 'confirm'
-  const [loading, setLoading] = useState(false)
-  const [email, setEmail] = useState('')
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
-  const [code, setCode] = useState('')
+  const navigate = useNavigate();
+  const [step, setStep] = useState('register'); // 'register' | 'confirm' | 'login'
+  const [form, setForm] = useState({ name: '', email: '', password: '', code: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  function handleChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError('');
+  }
 
   async function handleRegister(e) {
-    e.preventDefault()
-    setLoading(true)
-    const result = await registerUser(form)
-    setLoading(false)
-
-    if (result.success) {
-      setEmail(form.email)
-      if (result.needsConfirmation) {
-        setStep('confirm')
-        toast.success('Check your email for a verification code!')
-      } else {
-        toast.success('Account created! Please sign in.')
-        navigate('/login')
-      }
-    } else {
-      toast.error(result.message)
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await registerGuest({ name: form.name, email: form.email, password: form.password });
+      setMessage('Check your email for a verification code!');
+      setStep('confirm');
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleConfirm(e) {
-    e.preventDefault()
-    setLoading(true)
-    const result = await confirmRegistration({ email, code })
-    setLoading(false)
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await confirmRegistration(form.email, form.code);
+      await login(form.email, form.password);
+      navigate('/upload');
+    } catch (err) {
+      setError(err.message || 'Verification failed. Please check the code.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
-    if (result.success) {
-      toast.success('Email verified! You can now sign in.')
-      navigate('/login')
-    } else {
-      toast.error(result.message)
+  async function handleLogin(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await login(form.email, form.password);
+      navigate('/upload');
+    } catch (err) {
+      setError(err.message || 'Login failed. Check your email and password.');
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <div className="card" style={{ width: '100%', maxWidth: 420 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>💒</div>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: '#3a3a3a' }}>
-            {step === 'register' ? 'Join the Album' : 'Verify Email'}
+    <div className="page" style={{ maxWidth: '480px' }}>
+      <div className="card">
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ fontSize: '40px' }}>💒</div>
+          <h1 style={styles.title}>
+            {step === 'login' ? 'Welcome Back' : step === 'confirm' ? 'Verify Email' : 'Join the Celebration'}
           </h1>
-          <p style={{ color: '#999', fontSize: 14, marginTop: 6 }}>
-            {step === 'register'
-              ? 'Create your guest account to upload and view photos'
-              : `We sent a code to ${email}`}
+          <p style={styles.subtitle}>
+            {step === 'login'
+              ? 'Sign in to access your photos'
+              : step === 'confirm'
+              ? 'Enter the code we sent to your email'
+              : 'Register to upload and find your photos'}
           </p>
         </div>
 
-        {step === 'register' ? (
+        {error && <div className="alert alert-error">{error}</div>}
+        {message && <div className="alert alert-success">{message}</div>}
+
+        {/* Register Form */}
+        {step === 'register' && (
           <form onSubmit={handleRegister}>
             <div className="form-group">
               <label>Your Name</label>
-              <input
-                type="text"
-                placeholder="Sarah Johnson"
-                value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
-                required
-              />
+              <input name="name" placeholder="Sarah Johnson" value={form.name} onChange={handleChange} required />
             </div>
             <div className="form-group">
               <label>Email Address</label>
-              <input
-                type="email"
-                placeholder="sarah@example.com"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                required
-              />
+              <input name="email" type="email" placeholder="sarah@example.com" value={form.email} onChange={handleChange} required />
             </div>
             <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                placeholder="At least 8 characters"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                minLength={8}
-                required
-              />
+              <label>Password (min 8 characters)</label>
+              <input name="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} required minLength={8} />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
+            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loading}>
               {loading ? 'Creating account...' : 'Create Account →'}
             </button>
+            <p style={styles.switchLink}>
+              Already registered?{' '}
+              <span style={styles.link} onClick={() => setStep('login')}>Sign in</span>
+            </p>
           </form>
-        ) : (
+        )}
+
+        {/* Confirm Form */}
+        {step === 'confirm' && (
           <form onSubmit={handleConfirm}>
             <div className="form-group">
               <label>Verification Code</label>
-              <input
-                type="text"
-                placeholder="123456"
-                value={code}
-                onChange={e => setCode(e.target.value)}
-                maxLength={6}
-                required
-                style={{ textAlign: 'center', fontSize: 24, letterSpacing: 8 }}
-              />
+              <input name="code" placeholder="123456" value={form.code} onChange={handleChange} required maxLength={6} style={{ letterSpacing: '8px', fontSize: '20px', textAlign: 'center' }} />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
-              {loading ? 'Verifying...' : 'Verify Email →'}
+            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loading}>
+              {loading ? 'Verifying...' : 'Verify & Sign In →'}
             </button>
           </form>
         )}
 
-        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 14, color: '#999' }}>
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
+        {/* Login Form */}
+        {step === 'login' && (
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label>Email Address</label>
+              <input name="email" type="email" placeholder="sarah@example.com" value={form.email} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label>Password</label>
+              <input name="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} required />
+            </div>
+            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In →'}
+            </button>
+            <p style={styles.switchLink}>
+              No account?{' '}
+              <span style={styles.link} onClick={() => setStep('register')}>Register here</span>
+            </p>
+          </form>
+        )}
       </div>
     </div>
-  )
+  );
 }
+
+const styles = {
+  title: { fontSize: '24px', fontWeight: '400', margin: '8px 0 4px', color: '#3a3a3a' },
+  subtitle: { fontSize: '14px', color: '#888', margin: 0 },
+  switchLink: { textAlign: 'center', marginTop: '16px', fontSize: '14px', color: '#888' },
+  link: { color: '#c49a9a', cursor: 'pointer', textDecoration: 'underline' },
+};

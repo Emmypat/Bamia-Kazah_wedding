@@ -1,202 +1,139 @@
-import React, { useState, useEffect } from 'react'
-import { listMyPhotos } from '../utils/api'
-import toast from 'react-hot-toast'
+import React, { useState, useEffect } from 'react';
+import { getMyPhotos } from '../utils/api';
 
 export default function Gallery() {
-  const [photos, setPhotos] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState(null) // Lightbox
+  const [photos, setPhotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selected, setSelected] = useState(null); // Lightbox
 
   useEffect(() => {
-    loadPhotos()
-  }, [])
+    getMyPhotos()
+      .then((data) => setPhotos(data.photos || []))
+      .catch((err) => setError(err.message || 'Failed to load photos'))
+      .finally(() => setLoading(false));
+  }, []);
 
-  async function loadPhotos() {
-    try {
-      const data = await listMyPhotos()
-      setPhotos(data.photos || [])
-    } catch (err) {
-      toast.error('Failed to load your photos')
-    } finally {
-      setLoading(false)
-    }
+  function handleDownload(url, idx) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wedding-photo-${idx + 1}.jpg`;
+    a.click();
   }
 
   if (loading) {
     return (
-      <div className="page" style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="spinner" style={{ margin: '0 auto 16px' }} />
-          <p style={{ color: '#aaa' }}>Loading your gallery...</p>
-        </div>
+      <div className="page" style={{ textAlign: 'center', paddingTop: '80px' }}>
+        <div style={{ fontSize: '48px' }}>⏳</div>
+        <p style={{ color: '#888' }}>Loading your photos...</p>
       </div>
-    )
+    );
   }
 
   return (
     <div className="page">
-      <div className="container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
-          <div>
-            <h1 style={styles.title}>My Gallery</h1>
-            <p style={styles.subtitle}>
-              {photos.length} photo{photos.length !== 1 ? 's' : ''} you've uploaded
-            </p>
-          </div>
-          <button className="btn btn-secondary" onClick={loadPhotos} style={{ fontSize: 13, padding: '8px 20px' }}>
-            🔄 Refresh
-          </button>
-        </div>
+      <h1 style={styles.title}>🖼️ My Gallery</h1>
+      <p style={styles.subtitle}>
+        {photos.length > 0 ? `${photos.length} photos you've uploaded` : 'Your uploaded photos will appear here'}
+      </p>
 
-        {photos.length === 0 ? (
-          <div style={styles.emptyState}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>📷</div>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 400, color: '#3a3a3a', marginBottom: 8 }}>
-              No Photos Yet
-            </h2>
-            <p style={{ color: '#aaa', marginBottom: 24 }}>
-              Start capturing memories — upload your first photo!
-            </p>
-            <a href="/upload" className="btn btn-primary">Upload Photos</a>
-          </div>
-        ) : (
-          <div className="photo-grid">
-            {photos.map((photo, i) => (
-              <div key={i} className="photo-card" onClick={() => setSelected(photo)} style={{ cursor: 'pointer' }}>
-                <div style={{ position: 'relative' }}>
-                  <img
-                    src={photo.url}
-                    alt="Wedding photo"
-                    loading="lazy"
-                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
-                  />
-                  {photo.isCouple && (
-                    <span style={styles.coupleBadge}>💒 Couple</span>
-                  )}
-                  {photo.faceCount > 0 && (
-                    <span style={styles.faceBadge}>👥 {photo.faceCount}</span>
-                  )}
-                </div>
-                <div className="photo-card-footer">
-                  <a
-                    href={photo.url}
-                    download
-                    onClick={e => e.stopPropagation()}
-                    className="btn btn-secondary"
-                    style={{ fontSize: 12, padding: '6px 14px' }}
-                  >
-                    ⬇️ Download
-                  </a>
-                </div>
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {photos.length === 0 && !error && (
+        <div style={styles.emptyState}>
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>📷</div>
+          <p>You haven't uploaded any photos yet.</p>
+          <a href="/upload" className="btn-primary" style={{ marginTop: '16px', display: 'inline-block' }}>
+            Upload Your First Photo →
+          </a>
+        </div>
+      )}
+
+      {/* Photo grid */}
+      <div style={styles.grid}>
+        {photos.map((photo, idx) => (
+          <div key={idx} style={styles.photoCard} onClick={() => setSelected(photo)}>
+            <div style={styles.thumbWrap}>
+              <img src={photo.url} alt={`Photo ${idx + 1}`} style={styles.thumb} loading="lazy" />
+              {photo.isCouple && (
+                <div style={styles.coupleBadge}>💒 Couple</div>
+              )}
+              <div style={styles.overlay}>
+                <span style={styles.overlayIcon}>🔍</span>
               </div>
-            ))}
+            </div>
+            <div style={styles.cardFooter}>
+              <span style={styles.meta}>{photo.faceCount || 0} face{photo.faceCount !== 1 ? 's' : ''}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDownload(photo.url, idx); }}
+                style={styles.downloadBtn}
+              >
+                ⬇️
+              </button>
+            </div>
           </div>
-        )}
+        ))}
       </div>
 
       {/* Lightbox */}
       {selected && (
-        <div style={styles.lightboxOverlay} onClick={() => setSelected(null)}>
-          <div style={styles.lightboxContent} onClick={e => e.stopPropagation()}>
-            <button style={styles.lightboxClose} onClick={() => setSelected(null)}>✕</button>
-            <img src={selected.url} alt="Wedding photo" style={styles.lightboxImg} />
-            <div style={styles.lightboxFooter}>
-              <span style={{ color: '#aaa', fontSize: 13 }}>
-                Uploaded {new Date(selected.uploadedAt).toLocaleDateString()}
-                {selected.faceCount > 0 && ` · ${selected.faceCount} faces`}
-                {selected.isCouple && ' · 💒 Couple photo'}
-              </span>
-              <a href={selected.url} download className="btn btn-primary" style={{ fontSize: 13, padding: '8px 20px' }}>
+        <div style={styles.lightbox} onClick={() => setSelected(null)}>
+          <div style={styles.lightboxInner} onClick={(e) => e.stopPropagation()}>
+            <button style={styles.closeBtn} onClick={() => setSelected(null)}>✕</button>
+            <img src={selected.url} alt="Full size" style={styles.lightboxImg} />
+            <div style={styles.lightboxActions}>
+              <button
+                className="btn-primary"
+                onClick={() => handleDownload(selected.url, photos.indexOf(selected))}
+              >
                 ⬇️ Download
-              </a>
+              </button>
+              <p style={styles.lightboxExpiry}>
+                Link expires: {new Date(selected.expiresAt).toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 const styles = {
-  title: {
-    fontFamily: "'Cormorant Garamond', serif",
-    fontSize: 40,
-    fontWeight: 400,
-    color: '#3a3a3a',
-    marginBottom: 4,
-  },
-  subtitle: { color: '#aaa', fontSize: 14 },
-  emptyState: {
-    textAlign: 'center',
-    padding: '80px 20px',
-    background: 'white',
-    borderRadius: 12,
-    boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  },
+  title: { fontSize: '28px', fontWeight: '400', color: '#3a3a3a', margin: '0 0 8px' },
+  subtitle: { color: '#888', marginBottom: '28px' },
+  emptyState: { textAlign: 'center', padding: '60px 20px', color: '#888' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' },
+  photoCard: { background: '#fff', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', cursor: 'pointer' },
+  thumbWrap: { position: 'relative', height: '180px' },
+  thumb: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   coupleBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    background: 'rgba(212,167,167,0.9)',
-    color: 'white',
-    fontSize: 11,
-    fontWeight: 600,
-    padding: '3px 8px',
-    borderRadius: '50px',
+    position: 'absolute', top: '8px', left: '8px',
+    background: 'rgba(212,167,167,0.9)', color: '#fff',
+    padding: '3px 8px', borderRadius: '12px', fontSize: '11px',
   },
-  faceBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    background: 'rgba(0,0,0,0.5)',
-    color: 'white',
-    fontSize: 11,
-    padding: '3px 8px',
-    borderRadius: '50px',
+  overlay: {
+    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s',
   },
-  lightboxOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.9)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: 20,
+  overlayIcon: { fontSize: '28px', opacity: 0 },
+  cardFooter: { padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  meta: { fontSize: '13px', color: '#aaa' },
+  downloadBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' },
+  // Lightbox
+  lightbox: {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999,
   },
-  lightboxContent: {
-    background: 'white',
-    borderRadius: 12,
-    overflow: 'hidden',
-    maxWidth: 800,
-    width: '100%',
-    position: 'relative',
+  lightboxInner: {
+    background: '#fff', borderRadius: '12px', padding: '24px',
+    maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', position: 'relative',
   },
-  lightboxClose: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    background: 'rgba(0,0,0,0.5)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '50%',
-    width: 32,
-    height: 32,
-    cursor: 'pointer',
-    fontSize: 14,
-    zIndex: 1,
+  closeBtn: {
+    position: 'absolute', top: '12px', right: '12px',
+    background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666',
   },
-  lightboxImg: {
-    width: '100%',
-    maxHeight: '70vh',
-    objectFit: 'contain',
-    display: 'block',
-    background: '#111',
-  },
-  lightboxFooter: {
-    padding: '14px 20px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-}
+  lightboxImg: { maxWidth: '100%', maxHeight: '60vh', borderRadius: '8px', display: 'block' },
+  lightboxActions: { marginTop: '16px', display: 'flex', alignItems: 'center', gap: '16px' },
+  lightboxExpiry: { fontSize: '12px', color: '#aaa', margin: 0 },
+};

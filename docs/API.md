@@ -1,41 +1,41 @@
 # API Reference
 
-All endpoints are prefixed with your API Gateway URL (e.g. `https://abc123.execute-api.eu-west-1.amazonaws.com`).
+All endpoints are prefixed with your API Gateway URL (available from `terraform output api_url`).
 
-Protected routes require: `Authorization: Bearer <jwt_access_token>`
+Protected endpoints require a Cognito JWT token:
+```
+Authorization: Bearer <access_token>
+```
 
 ---
 
 ## GET /health
 
-Public health check.
+Public. Health check.
 
-**Response:**
+**Response 200:**
 ```json
-{
-  "status": "ok",
-  "timestamp": "2025-06-15T14:30:00Z"
-}
+{ "status": "ok", "timestamp": "2025-06-15T12:00:00Z" }
 ```
 
 ---
 
 ## POST /upload
 
-Upload a wedding photo. The image is stored in S3 and faces are indexed in Rekognition.
+Upload a photo. Faces are automatically indexed.
 
 **Auth:** Required
 
 **Request:**
 ```json
 {
-  "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgAB...",
+  "image": "data:image/jpeg;base64,/9j/4AAQ...",
   "contentType": "image/jpeg",
   "filename": "photo.jpg"
 }
 ```
 
-**Response:**
+**Response 200:**
 ```json
 {
   "message": "Photo uploaded successfully",
@@ -46,33 +46,33 @@ Upload a wedding photo. The image is stored in S3 and faces are indexed in Rekog
 ```
 
 **Errors:**
-- `400` — Missing image, invalid file type, invalid base64
-- `413` — File too large (max 20MB)
+- `400` — Missing image, invalid file type, or invalid base64
+- `413` — File exceeds 20MB limit
 - `401` — Not authenticated
 
 ---
 
 ## POST /search
 
-Search for photos using a selfie. The selfie is NOT stored.
+Find all photos containing a face from a selfie.
 
 **Auth:** Required
 
 **Request:**
 ```json
 {
-  "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgAB...",
+  "image": "data:image/jpeg;base64,/9j/4AAQ...",
   "contentType": "image/jpeg"
 }
 ```
 
-**Response:**
+**Response 200:**
 ```json
 {
   "photos": [
     {
       "photoKey": "uploads/2025/06/15/abc123.jpg",
-      "url": "https://wedding-photos-prod.s3.amazonaws.com/uploads/...?X-Amz-Signature=...",
+      "url": "https://s3.amazonaws.com/...?X-Amz-Signature=...",
       "expiresAt": "2025-06-17T14:30:00Z"
     }
   ],
@@ -81,9 +81,7 @@ Search for photos using a selfie. The selfie is NOT stored.
 }
 ```
 
-**Errors:**
-- `400` — Missing image, no face detected in selfie
-- `401` — Not authenticated
+> **Privacy:** The selfie is never stored or indexed. It's used in-memory only for the search.
 
 ---
 
@@ -93,13 +91,13 @@ List all photos uploaded by the authenticated user.
 
 **Auth:** Required
 
-**Response:**
+**Response 200:**
 ```json
 {
   "photos": [
     {
       "photoKey": "uploads/2025/06/15/abc123.jpg",
-      "url": "https://...",
+      "url": "https://s3.amazonaws.com/...",
       "uploadedAt": "2025-06-15T14:30:00Z",
       "faceCount": 3,
       "isCouple": true
@@ -113,41 +111,27 @@ List all photos uploaded by the authenticated user.
 
 ## POST /register-couple
 
-Register a couple member's face for automatic detection. **Admin group required.**
+Register a couple member's face for auto-detection.
 
-**Auth:** Required (admin Cognito group)
+**Auth:** Required (Admin group)
 
 **Request:**
 ```json
 {
-  "image": "data:image/jpeg;base64,...",
+  "image": "data:image/jpeg;base64,/9j/4AAQ...",
   "contentType": "image/jpeg",
   "personName": "Sarah"
 }
 ```
 
-**Response:**
+**Response 200:**
 ```json
 {
   "message": "Successfully registered face for Sarah",
-  "faceId": "1234abcd-...",
+  "faceId": "abc123-def456-...",
   "personName": "Sarah"
 }
 ```
 
 **Errors:**
-- `422` — No face detected in the image (use a clear, front-facing photo)
-
----
-
-## Authentication
-
-This API uses Cognito JWT tokens.
-
-**Login flow:**
-1. Register at `POST /register` (handled by Cognito via Amplify SDK)
-2. Confirm email with verification code
-3. Sign in → receive `accessToken`
-4. Attach to all requests: `Authorization: Bearer <accessToken>`
-
-Tokens expire after 8 hours. The frontend handles refresh automatically via AWS Amplify.
+- `422` — No face detected in the image
