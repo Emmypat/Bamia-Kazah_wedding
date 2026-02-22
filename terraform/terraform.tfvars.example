@@ -1,0 +1,38 @@
+##############################################################
+# terraform.tfvars.example
+#
+# Copy this to terraform.tfvars and fill in your real values.
+# terraform.tfvars is gitignored — never commit real values!
+#
+# Usage:
+#   cp terraform.tfvars.example terraform.tfvars
+#   nano terraform.tfvars   # edit with your values
+##############################################################
+
+aws_region   = "eu-west-1"
+project_name = "wedding-photos"
+environment  = "prod"
+
+# Couple info
+couple_name  = "Sarah & James"
+wedding_date = "2025-06-15"
+
+# Email addresses (must be verified in AWS SES)
+couple_email_1          = "partner1@example.com"
+couple_email_2          = "partner2@example.com"
+notification_email_from = "photos@yourdomain.com"
+
+# Rekognition
+rekognition_collection_id  = "wedding-faces"
+rekognition_min_confidence = 90
+
+# File handling
+max_file_size_mb = 20
+
+# Optional: custom domain (comment out if not using)
+# domain_name     = "photos.yourdomain.com"
+# certificate_arn = "arn:aws:acm:us-east-1:123456789:certificate/abc-def"
+
+# Cost controls
+lambda_max_concurrency = 100
+photo_retention_days   = 90

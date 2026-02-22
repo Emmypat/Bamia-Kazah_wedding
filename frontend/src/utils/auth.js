@@ -1,0 +1,103 @@
+/**
+ * auth.js — Cognito authentication utilities
+ *
+ * Uses AWS Amplify to handle Cognito auth flows.
+ * Amplify abstracts the complex OAuth/SRP handshake into simple JS calls.
+ *
+ * Configuration is read from environment variables set at build time:
+ * REACT_APP_USER_POOL_ID and REACT_APP_USER_POOL_CLIENT_ID
+ * (Terraform outputs these values after deployment)
+ */
+
+import { Amplify } from 'aws-amplify';
+import {
+  signIn,
+  signOut,
+  signUp,
+  confirmSignUp,
+  getCurrentUser,
+  fetchAuthSession,
+} from 'aws-amplify/auth';
+
+// Configure Amplify with Cognito settings
+// These env vars are set in your .env file after terraform apply
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: process.env.REACT_APP_USER_POOL_ID,
+      userPoolClientId: process.env.REACT_APP_USER_POOL_CLIENT_ID,
+      loginWith: { email: true },
+    },
+  },
+});
+
+/**
+ * Register a new guest account.
+ * Cognito will send a verification email automatically.
+ */
+export async function registerGuest({ name, email, password }) {
+  const result = await signUp({
+    username: email,
+    password,
+    options: {
+      userAttributes: { name, email },
+    },
+  });
+  return result;
+}
+
+/**
+ * Confirm registration with the verification code from email.
+ */
+export async function confirmRegistration(email, code) {
+  return confirmSignUp({ username: email, confirmationCode: code });
+}
+
+/**
+ * Sign in with email and password.
+ * Returns the Cognito sign-in result.
+ */
+export async function login(email, password) {
+  return signIn({ username: email, password });
+}
+
+/**
+ * Sign out the current user.
+ */
+export async function logout() {
+  return signOut();
+}
+
+/**
+ * Get the current authenticated user's info.
+ * Returns null if not authenticated.
+ */
+export async function getCurrentUser() {
+  try {
+    return await getCurrentUser();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get the current JWT access token.
+ * Attach this to API requests: Authorization: Bearer <token>
+ * Amplify handles token refresh automatically.
+ */
+export async function getAccessToken() {
+  try {
+    const session = await fetchAuthSession();
+    return session.tokens?.accessToken?.toString() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if a user is currently authenticated.
+ */
+export async function isAuthenticated() {
+  const user = await getCurrentUser();
+  return user !== null;
+}
