@@ -20,7 +20,7 @@
 
 terraform {
   backend "s3" {
-    bucket         = "wedding-photos-terraform-state" # Change this to your bucket name
+    bucket         = "wedding-photos-tfstate-360121241699"
     key            = "prod/terraform.tfstate"         # Path within the bucket
     region         = "eu-west-1"                      # Must match your aws_region
     encrypt        = true                             # Encrypts state file at rest

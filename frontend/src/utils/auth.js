@@ -9,27 +9,17 @@
  * (Terraform outputs these values after deployment)
  */
 
-import { Amplify } from 'aws-amplify';
 import {
   signIn,
   signOut,
   signUp,
   confirmSignUp,
-  getCurrentUser,
+  getCurrentUser as amplifyGetCurrentUser,
   fetchAuthSession,
 } from 'aws-amplify/auth';
 
-// Configure Amplify with Cognito settings
-// These env vars are set in your .env file after terraform apply
-Amplify.configure({
-  Auth: {
-    Cognito: {
-      userPoolId: process.env.REACT_APP_USER_POOL_ID,
-      userPoolClientId: process.env.REACT_APP_USER_POOL_CLIENT_ID,
-      loginWith: { email: true },
-    },
-  },
-});
+// Amplify is configured once in main.jsx using VITE_COGNITO_USER_POOL_ID
+// and VITE_COGNITO_CLIENT_ID. No configuration needed here.
 
 /**
  * Register a new guest account.
@@ -74,7 +64,7 @@ export async function logout() {
  */
 export async function getCurrentUser() {
   try {
-    return await getCurrentUser();
+    return await amplifyGetCurrentUser();
   } catch {
     return null;
   }

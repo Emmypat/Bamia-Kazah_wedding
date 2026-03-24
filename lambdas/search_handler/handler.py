@@ -30,6 +30,7 @@ import json
 import base64
 import os
 import logging
+from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -224,24 +225,51 @@ def get_photos_for_faces(face_ids: list[str]) -> list[str]:
     return list(photo_keys)
 
 
+def extract_groups(event: dict) -> list:
+    try:
+        groups_str = event["requestContext"]["authorizer"]["jwt"]["claims"].get("cognito:groups", "")
+        if not groups_str:
+            return []
+        # API Gateway passes Cognito groups as "[group1, group2]" (JSON array string)
+        groups_str = groups_str.strip("[]")
+        return [g.strip() for g in groups_str.split(",") if g.strip()]
+    except (KeyError, TypeError):
+        return []
+
+
 def handle_list_photos(event: dict) -> dict:
     """
-    GET /photos — List all photos uploaded by the authenticated guest.
-    Returns presigned URLs for the guest's own uploads.
+    GET /photos — List photos for the authenticated guest.
+    Admin users (in the 'admins' Cognito group) see ALL photos.
+    Regular guests only see their own uploads.
     """
     guest_id = extract_guest_id(event)
     if not guest_id:
         return error_response(401, "Unauthorized")
 
-    photos_table = dynamodb.Table(os.environ.get("PHOTOS_TABLE", "photos"))
+    groups = extract_groups(event)
+    is_admin = "admins" in groups
+    logger.info(f"User {guest_id} groups={groups} is_admin={is_admin}")
+
+    photos_table = dynamodb.Table(os.environ["PHOTOS_TABLE"])
 
     try:
-        # Use the uploadedBy-index GSI to find photos by this guest
-        response = photos_table.query(
-            IndexName="uploadedBy-index",
-            KeyConditionExpression=Key("uploadedBy").eq(guest_id),
-        )
-        items = response.get("Items", [])
+        if is_admin:
+            # Admin: scan all photos across all guests
+            logger.info("Admin user — returning all photos")
+            response = photos_table.scan()
+            items = response.get("Items", [])
+            # Handle DynamoDB pagination
+            while "LastEvaluatedKey" in response:
+                response = photos_table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+                items.extend(response.get("Items", []))
+        else:
+            # Regular guest: only their own uploads
+            response = photos_table.query(
+                IndexName="uploadedBy-index",
+                KeyConditionExpression=Key("uploadedBy").eq(guest_id),
+            )
+            items = response.get("Items", [])
     except ClientError as e:
         logger.error(f"DynamoDB query failed: {e}")
         return error_response(500, "Failed to retrieve photos")
@@ -260,13 +288,14 @@ def handle_list_photos(event: dict) -> dict:
                 "photoKey": item["photoKey"],
                 "url": url,
                 "uploadedAt": item.get("uploadedAt"),
+                "uploadedBy": item.get("uploadedBy"),
                 "faceCount": item.get("faceCount", 0),
                 "isCouple": item.get("isCouple", False),
             })
         except ClientError:
             pass
 
-    return success_response({"photos": photos, "count": len(photos)})
+    return success_response({"photos": photos, "count": len(photos), "isAdminView": is_admin})
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -298,11 +327,18 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return int(obj) if obj % 1 == 0 else float(obj)
+        return super().default(obj)
+
+
 def success_response(data: dict, status_code: int = 200) -> dict:
     return {
         "statusCode": status_code,
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-        "body": json.dumps(data),
+        "body": json.dumps(data, cls=DecimalEncoder),
     }
 
 

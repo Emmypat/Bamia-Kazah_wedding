@@ -50,8 +50,8 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   jwt_configuration {
     # The issuer is your Cognito User Pool's URL
     issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${var.cognito_user_pool_id}"
-    # The audience is your App Client ID
-    audience = [var.cognito_user_pool_id]
+    # Audience must match the client_id claim in Cognito access tokens
+    audience = [var.cognito_user_pool_client_id]
   }
 }
 
@@ -165,6 +165,32 @@ resource "aws_apigatewayv2_route" "register_couple" {
   target             = "integrations/${aws_apigatewayv2_integration.register_couple.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /photos ───────────────────────────────────────
+# Lists all photos uploaded by the authenticated guest.
+# Handled by search_handler (which also handles POST /search).
+resource "aws_apigatewayv2_integration" "list_photos" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.search_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "list_photos" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /photos"
+  target             = "integrations/${aws_apigatewayv2_integration.list_photos.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "api_list_photos" {
+  statement_id  = "AllowAPIGWInvokeListPhotos"
+  action        = "lambda:InvokeFunction"
+  function_name = var.search_handler_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/photos"
 }
 
 # ── Route: GET /health (public, no auth) ─────────────────────

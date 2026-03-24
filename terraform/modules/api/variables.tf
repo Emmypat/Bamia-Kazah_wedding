@@ -7,4 +7,5 @@ variable "couple_detector_invoke_arn" { type = string }
 variable "couple_detector_function_name" { type = string }
 variable "cognito_user_pool_endpoint" { type = string }
 variable "cognito_user_pool_id" { type = string }
+variable "cognito_user_pool_client_id" { type = string }
 variable "aws_region" { type = string }

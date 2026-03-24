@@ -73,7 +73,9 @@ resource "aws_iam_role_policy" "lambda_custom" {
           "dynamodb:UpdateItem",
           "dynamodb:DeleteItem",
           "dynamodb:Query",
-          "dynamodb:Scan"
+          "dynamodb:Scan",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:BatchGetItem"
         ]
         Resource = [
           var.faces_table_arn,
@@ -200,6 +202,7 @@ resource "aws_lambda_function" "search_handler" {
     variables = {
       PHOTOS_BUCKET              = var.photos_upload_bucket_name
       FACES_TABLE                = var.faces_table_name
+      PHOTOS_TABLE               = var.photos_table_name
       REKOGNITION_COLLECTION_ID  = var.rekognition_collection_id
       REKOGNITION_MIN_CONFIDENCE = tostring(var.rekognition_min_confidence)
       PHOTO_URL_EXPIRY_HOURS     = tostring(var.photo_url_expiry_hours)

@@ -1,26 +1,25 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { loginUser, useAuth } from '../utils/auth'
-import toast from 'react-hot-toast'
+import { login, logout } from '../utils/auth'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { refreshAuth } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   async function handleLogin(e) {
     e.preventDefault()
     setLoading(true)
-    const result = await loginUser(form)
-    setLoading(false)
-
-    if (result.success) {
-      await refreshAuth()
-      toast.success('Welcome back! 👋')
+    setError('')
+    try {
+      await logout().catch(() => {}) // clear any existing session first
+      await login(form.email, form.password)
       navigate('/gallery')
-    } else {
-      toast.error(result.message)
+    } catch (err) {
+      setError(err.message || 'Login failed')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -34,6 +33,8 @@ export default function Login() {
           </h1>
           <p style={{ color: '#999', fontSize: 14, marginTop: 6 }}>Sign in to access your wedding photos</p>
         </div>
+
+        {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
 
         <form onSubmit={handleLogin}>
           <div className="form-group">

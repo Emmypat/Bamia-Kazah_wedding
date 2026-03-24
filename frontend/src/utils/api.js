@@ -12,9 +12,9 @@
 import axios from 'axios';
 import { getAccessToken } from './auth';
 
-// Base URL: /api routes via CloudFront → API Gateway
-// In development, set REACT_APP_API_URL to your API Gateway URL directly
-const BASE_URL = process.env.REACT_APP_API_URL || '/api';
+// Base URL: /api routes via CloudFront → API Gateway (prefix stripped by CF Function)
+// Override with VITE_API_URL in .env to call API Gateway directly during development
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Create an axios instance with the auth token automatically attached.

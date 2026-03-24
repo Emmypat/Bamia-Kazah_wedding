@@ -136,10 +136,33 @@ module "api" {
   couple_detector_function_name = module.lambdas.couple_detector_function_name
 
   # Cognito authorizer
-  cognito_user_pool_endpoint = module.auth.user_pool_endpoint
-  cognito_user_pool_id       = module.auth.user_pool_id
+  cognito_user_pool_endpoint  = module.auth.user_pool_endpoint
+  cognito_user_pool_id        = module.auth.user_pool_id
+  cognito_user_pool_client_id = module.auth.user_pool_client_id
 
   aws_region = var.aws_region
+}
+
+# ── Frontend S3 bucket policy ─────────────────────────────────
+# Must be created after CDN so we have the distribution ARN.
+resource "aws_s3_bucket_policy" "frontend" {
+  bucket = module.storage.frontend_bucket_id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "AllowCloudFrontServicePrincipal"
+      Effect    = "Allow"
+      Principal = { Service = "cloudfront.amazonaws.com" }
+      Action    = "s3:GetObject"
+      Resource  = "${module.storage.frontend_bucket_arn}/*"
+      Condition = {
+        StringEquals = {
+          "AWS:SourceArn" = module.cdn.cloudfront_distribution_arn
+        }
+      }
+    }]
+  })
+  depends_on = [module.cdn]
 }
 
 # ── Module: CDN ───────────────────────────────────────────────

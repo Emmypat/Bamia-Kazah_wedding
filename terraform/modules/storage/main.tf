@@ -144,33 +144,5 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
   restrict_public_buckets = true
 }
 
-# Allow CloudFront to read from this bucket using OAC (Origin Access Control).
-# OAC is the modern replacement for OAI — more secure and supports SSE-KMS.
-# The actual CloudFront OAC is created in the CDN module; we reference it here.
-resource "aws_s3_bucket_policy" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-  policy = data.aws_iam_policy_document.frontend_bucket_policy.json
-}
-
-data "aws_iam_policy_document" "frontend_bucket_policy" {
-  statement {
-    sid    = "AllowCloudFrontServicePrincipal"
-    effect = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["cloudfront.amazonaws.com"]
-    }
-
-    actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.frontend.arn}/*"]
-
-    # Condition: only allow requests from OUR CloudFront distribution.
-    # This prevents other CloudFront distributions from accessing this bucket.
-    condition {
-      test     = "StringEquals"
-      variable = "AWS:SourceArn"
-      values   = [var.cloudfront_distribution_arn]
-    }
-  }
-}
+# Note: the S3 bucket policy for CloudFront OAC access is created in the
+# root main.tf, after the CloudFront distribution ARN is known.

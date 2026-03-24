@@ -18,6 +18,26 @@
 # the full API Gateway URL — simplifies configuration.
 ##############################################################
 
+# CloudFront Function: strip /api prefix before forwarding to API Gateway.
+# When the frontend calls /api/upload, CloudFront forwards the full path
+# including /api to the API Gateway origin. API Gateway routes are defined
+# as /upload, /search, etc. (no /api prefix), so they'd return 404.
+# This function rewrites /api/upload → /upload before the request leaves
+# the CloudFront edge node.
+resource "aws_cloudfront_function" "api_rewrite" {
+  name    = "${var.name_prefix}-api-rewrite"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  comment = "Strips /api prefix from URI before forwarding to API Gateway"
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      request.uri = request.uri.replace(/^\/api/, '') || '/';
+      return request;
+    }
+  EOT
+}
+
 # CloudFront Origin Access Control (OAC)
 # Replaces the older OAI — allows CloudFront to read from S3
 # without making the bucket public.
@@ -49,12 +69,8 @@ resource "aws_cloudfront_distribution" "main" {
   # ── Origin 2: API Gateway ──────────────────────────────────
   # Extract hostname from API Gateway URL
   origin {
-    domain_name = replace(
-      replace(var.api_gateway_url, "https://", ""),
-      "/${regex("[^/]+$", var.api_gateway_url)}",
-      ""
-    )
-    origin_id = "APIGateway"
+    domain_name = trimsuffix(replace(var.api_gateway_url, "https://", ""), "/")
+    origin_id   = "APIGateway"
 
     custom_origin_config {
       http_port              = 80
@@ -88,13 +104,10 @@ resource "aws_cloudfront_distribution" "main" {
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
 
-    # Forward the Authorization header (for Cognito JWT)
-    forwarded_values {
-      query_string = true
-      headers      = ["Authorization", "Origin", "Content-Type"]
-      cookies {
-        forward = "none"
-      }
+    # Strip /api prefix before forwarding to API Gateway
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_rewrite.arn
     }
   }
 

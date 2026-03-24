@@ -77,15 +77,6 @@ resource "aws_cognito_user_pool" "guests" {
     email_message        = "Welcome! Your verification code is: {####}"
   }
 
-  # Token validity
-  # Short access tokens = more secure (less time if stolen)
-  # Long refresh tokens = guests stay logged in for the wedding day
-  token_validity_units {
-    access_token  = "hours"
-    id_token      = "hours"
-    refresh_token = "days"
-  }
-
   tags = {
     Name = "Wedding Guest User Pool"
   }
