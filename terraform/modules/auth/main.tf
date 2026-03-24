@@ -77,6 +77,12 @@ resource "aws_cognito_user_pool" "guests" {
     email_message        = "Welcome! Your verification code is: {####}"
   }
 
+  # Pre-signup trigger: auto-confirms all users (no email verification needed)
+  # This supports phone-number signups via synthetic email addresses
+  lambda_config {
+    pre_sign_up = var.pre_signup_lambda_arn
+  }
+
   tags = {
     Name = "Wedding Guest User Pool"
   }
@@ -113,6 +119,15 @@ resource "aws_cognito_user_pool_client" "frontend" {
 
   # Prevent user existence errors (don't reveal if email exists)
   prevent_user_existence_errors = "ENABLED"
+}
+
+# Permission: allow Cognito to invoke the pre-signup Lambda trigger
+resource "aws_lambda_permission" "allow_cognito_pre_signup" {
+  statement_id  = "AllowCognitoInvokePreSignup"
+  action        = "lambda:InvokeFunction"
+  function_name = var.pre_signup_lambda_arn
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.guests.arn
 }
 
 # ── Admin Group ───────────────────────────────────────────────

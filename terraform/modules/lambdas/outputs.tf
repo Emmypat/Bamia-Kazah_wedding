@@ -19,3 +19,6 @@ output "couple_detector_function_name" {
 output "email_notifier_invoke_arn" {
   value = aws_lambda_function.email_notifier.invoke_arn
 }
+output "pre_signup_lambda_arn" {
+  value = aws_lambda_function.pre_signup.arn
+}

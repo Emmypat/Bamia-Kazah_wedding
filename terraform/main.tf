@@ -66,8 +66,9 @@ module "rekognition" {
 module "auth" {
   source = "./modules/auth"
 
-  name_prefix  = local.name_prefix
-  project_name = var.project_name
+  name_prefix           = local.name_prefix
+  project_name          = var.project_name
+  pre_signup_lambda_arn = module.lambdas.pre_signup_lambda_arn
 }
 
 # ── Module: Notifications ─────────────────────────────────────

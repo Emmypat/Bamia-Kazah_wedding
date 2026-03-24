@@ -37,6 +37,35 @@ export default function Search() {
     a.click();
   }
 
+  async function handleShare(url) {
+    const text = "I found my photo from Bamai & Kazah's wedding!";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Bamai & Kazah's Wedding", text, url });
+        return;
+      } catch (_) {}
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`, '_blank');
+  }
+
+  function shareToWhatsApp(url) {
+    const text = `I found my photo from Bamai & Kazah's wedding! ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  }
+
+  function shareToFacebook(url) {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+  }
+
+  async function copyLink(url) {
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Link copied!');
+    } catch (_) {
+      prompt('Copy this link:', url);
+    }
+  }
+
   return (
     <div className="page">
       <h1 style={styles.title}>Find My Photos</h1>
@@ -141,9 +170,20 @@ export default function Search() {
                       <button onClick={() => handleDownload(photo.url, idx)} style={styles.downloadBtn}>
                         Download
                       </button>
-                      <a href={photo.url} target="_blank" rel="noreferrer" style={styles.viewLink}>
-                        View
-                      </a>
+                      <button onClick={() => handleShare(photo.url)} style={styles.shareBtn} title="Share">
+                        Share
+                      </button>
+                    </div>
+                    <div style={styles.photoSocial}>
+                      <button onClick={() => shareToWhatsApp(photo.url)} style={{ ...styles.socialBtn, background: '#25D366' }}>
+                        WhatsApp
+                      </button>
+                      <button onClick={() => shareToFacebook(photo.url)} style={{ ...styles.socialBtn, background: '#1877F2' }}>
+                        Facebook
+                      </button>
+                      <button onClick={() => copyLink(photo.url)} style={{ ...styles.socialBtn, background: '#5C3D2E' }}>
+                        Copy
+                      </button>
                     </div>
                     <p style={styles.expiryText}>
                       Valid until {new Date(photo.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -223,6 +263,16 @@ const styles = {
     padding: '7px 16px', borderRadius: '20px',
     cursor: 'pointer', fontSize: '12px', fontWeight: '500',
   },
-  viewLink: { fontSize: '12px', color: '#C4956A', textDecoration: 'none', fontWeight: '500' },
+  shareBtn: {
+    background: '#7A1428', border: 'none', color: 'white',
+    padding: '7px 12px', borderRadius: '20px',
+    cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+  },
+  photoSocial: { padding: '0 12px 10px', display: 'flex', gap: '6px', flexWrap: 'wrap' },
+  socialBtn: {
+    border: 'none', color: 'white',
+    padding: '5px 10px', borderRadius: '20px',
+    cursor: 'pointer', fontSize: '11px', fontWeight: '500',
+  },
   expiryText: { fontSize: '11px', color: '#C4956A', padding: '0 12px 10px', margin: 0 },
 };

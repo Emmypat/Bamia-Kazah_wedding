@@ -2,9 +2,23 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login, logout } from '../utils/auth';
 
+function isPhoneInput(value) {
+  const clean = value.replace(/\s+/g, '');
+  return /^(\+234|234|0)[789]\d{8,9}$/.test(clean) || /^0\d{10}$/.test(clean);
+}
+
+function normalizeContact(value) {
+  if (isPhoneInput(value)) {
+    let digits = value.replace(/\s+/g, '').replace(/^\+/, '');
+    if (digits.startsWith('0')) digits = '234' + digits.slice(1);
+    return `${digits}@weddingguest.ng`;
+  }
+  return value;
+}
+
 export default function Login() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ contact: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -13,10 +27,10 @@ export default function Login() {
     setLoading(true); setError('');
     try {
       await logout().catch(() => {});
-      await login(form.email, form.password);
+      await login(normalizeContact(form.contact), form.password);
       navigate('/gallery');
     } catch (err) {
-      setError(err.message || 'Login failed. Check your email and password.');
+      setError(err.message || 'Login failed. Check your details and try again.');
     } finally { setLoading(false); }
   }
 
@@ -33,14 +47,19 @@ export default function Login() {
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label>Email Address</label>
+            <label>Phone or Email</label>
             <input
-              type="email"
-              placeholder="sarah@example.com"
-              value={form.email}
-              onChange={e => setForm({ ...form, email: e.target.value })}
+              type="text"
+              placeholder="08012345678 or sarah@example.com"
+              value={form.contact}
+              onChange={e => setForm({ ...form, contact: e.target.value })}
               required
             />
+            {isPhoneInput(form.contact) && (
+              <span style={{ fontSize: '12px', color: '#166534', marginTop: '4px', display: 'block' }}>
+                ✓ Nigerian phone detected
+              </span>
+            )}
           </div>
           <div className="form-group">
             <label>Password</label>
@@ -69,35 +88,23 @@ export default function Login() {
 const styles = {
   page: {
     minHeight: 'calc(100vh - 68px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: '40px 16px',
     background: 'linear-gradient(160deg, #fff5f5 0%, #FDF6EE 100%)',
   },
   card: {
-    background: 'white',
-    borderRadius: '20px',
+    background: 'white', borderRadius: '20px',
     boxShadow: '0 8px 40px rgba(122,20,40,0.12)',
-    padding: '40px',
-    width: '100%',
-    maxWidth: '420px',
+    padding: '40px', width: '100%', maxWidth: '420px',
     border: '1px solid #EDE0D8',
   },
   cardHeader: { textAlign: 'center', marginBottom: '28px' },
   logo: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '52px',
-    height: '52px',
-    borderRadius: '50%',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    width: '52px', height: '52px', borderRadius: '50%',
     background: 'linear-gradient(135deg, #7A1428, #5C0F1E)',
-    color: 'white',
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
-    fontSize: '18px',
-    fontWeight: '600',
-    marginBottom: '16px',
+    color: 'white', fontFamily: "'Cormorant Garamond', Georgia, serif",
+    fontSize: '18px', fontWeight: '600', marginBottom: '16px',
   },
   title: { fontSize: '26px', color: '#2D2020', margin: '0 0 6px' },
   subtitle: { fontSize: '14px', color: '#7A6060', margin: 0 },

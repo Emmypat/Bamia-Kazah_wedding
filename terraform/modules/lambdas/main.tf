@@ -148,6 +148,12 @@ data "archive_file" "email_notifier" {
   output_path = "${path.module}/../../.build/email_notifier.zip"
 }
 
+data "archive_file" "pre_signup" {
+  type        = "zip"
+  source_dir  = "${path.root}/../lambdas/pre_signup"
+  output_path = "${path.module}/../../.build/pre_signup.zip"
+}
+
 # ── Lambda 1: Upload Handler ──────────────────────────────────
 resource "aws_lambda_function" "upload_handler" {
   function_name    = "${var.name_prefix}-upload-handler"
@@ -311,3 +317,28 @@ resource "aws_lambda_permission" "allow_sns_email_notifier" {
   principal     = "sns.amazonaws.com"
   source_arn    = var.sns_topic_arn
 }
+
+# ── Lambda 5: Pre-Signup Trigger ──────────────────────────────
+# Auto-confirms all Cognito registrations so guests can sign up
+# with either email or phone (via synthetic email) without needing
+# to verify a real email inbox.
+resource "aws_lambda_function" "pre_signup" {
+  function_name    = "${var.name_prefix}-pre-signup"
+  filename         = data.archive_file.pre_signup.output_path
+  source_code_hash = data.archive_file.pre_signup.output_base64sha256
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "handler.lambda_handler"
+  runtime          = "python3.11"
+  memory_size      = 128
+  timeout          = 5
+
+  tags = { Name = "Pre-Signup Trigger" }
+}
+
+resource "aws_cloudwatch_log_group" "pre_signup" {
+  name              = "/aws/lambda/${aws_lambda_function.pre_signup.function_name}"
+  retention_in_days = 14
+}
+
+# Note: the Lambda permission allowing Cognito to invoke this function
+# is created in the auth module to avoid a circular dependency.

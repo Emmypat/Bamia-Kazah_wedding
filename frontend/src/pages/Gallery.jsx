@@ -26,6 +26,37 @@ export default function Gallery() {
     a.click();
   }
 
+  async function handleShare(photo, idx) {
+    const text = `Check out this photo from Bamai & Kazah's wedding!`;
+    const shareUrl = photo.url;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Bamai & Kazah's Wedding", text, url: shareUrl });
+        return;
+      } catch (_) { /* fall through to manual options */ }
+    }
+    // Fallback: open WhatsApp
+    window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + shareUrl)}`, '_blank');
+  }
+
+  function shareToFacebook(url) {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+  }
+
+  function shareToWhatsApp(url) {
+    const text = `Check out this photo from Bamai & Kazah's wedding! ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  }
+
+  async function copyLink(url) {
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Link copied!');
+    } catch (_) {
+      prompt('Copy this link:', url);
+    }
+  }
+
   const filtered = filter === 'couple' ? photos.filter(p => p.isCouple) : photos;
   const coupleCount = photos.filter(p => p.isCouple).length;
 
@@ -103,13 +134,22 @@ export default function Gallery() {
                 <span style={styles.meta}>{photo.faceCount || 0} face{photo.faceCount !== 1 ? 's' : ''}</span>
                 {isAdminView && <span style={styles.guestTag}>Guest</span>}
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDownload(photo.url, idx); }}
-                style={styles.downloadBtn}
-                title="Download"
-              >
-                ⬇
-              </button>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleShare(photo, idx); }}
+                  style={styles.iconBtn}
+                  title="Share"
+                >
+                  ↗
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDownload(photo.url, idx); }}
+                  style={styles.iconBtn}
+                  title="Download"
+                >
+                  ⬇
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -134,13 +174,22 @@ export default function Gallery() {
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={() => handleDownload(selected.photo.url, selected.idx)}>
-                Download Photo
+                Download
               </button>
-              <a href={selected.photo.url} target="_blank" rel="noreferrer" className="btn btn-secondary">
-                Open Original
-              </a>
+              <button style={styles.shareBtn} onClick={() => handleShare(selected.photo, selected.idx)}>
+                Share
+              </button>
+              <button style={{ ...styles.shareBtn, background: '#25D366' }} onClick={() => shareToWhatsApp(selected.photo.url)}>
+                WhatsApp
+              </button>
+              <button style={{ ...styles.shareBtn, background: '#1877F2' }} onClick={() => shareToFacebook(selected.photo.url)}>
+                Facebook
+              </button>
+              <button style={{ ...styles.shareBtn, background: '#5C3D2E' }} onClick={() => copyLink(selected.photo.url)}>
+                Copy Link
+              </button>
             </div>
           </div>
         </div>
@@ -204,6 +253,12 @@ const styles = {
   meta: { fontSize: '12px', color: '#C4956A' },
   guestTag: { background: '#F7EDE0', color: '#5C3D2E', fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: '500' },
   downloadBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#C4956A' },
+  iconBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#C4956A', padding: '2px 4px' },
+  shareBtn: {
+    background: '#7A1428', border: 'none', color: 'white',
+    padding: '10px 18px', borderRadius: '20px',
+    cursor: 'pointer', fontSize: '13px', fontWeight: '500',
+  },
   lightbox: {
     position: 'fixed', inset: 0, background: 'rgba(30,5,10,0.92)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px',

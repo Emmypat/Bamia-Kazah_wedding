@@ -2,10 +2,30 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerGuest, confirmRegistration, login } from '../utils/auth';
 
+// Convert Nigerian phone to synthetic email for Cognito
+// e.g. "08012345678" or "+2348012345678" → "2348012345678@weddingguest.ng"
+function phoneToEmail(phone) {
+  let digits = phone.replace(/\s+/g, '').replace(/^\+/, '');
+  if (digits.startsWith('0')) digits = '234' + digits.slice(1);
+  return `${digits}@weddingguest.ng`;
+}
+
+function isPhoneInput(value) {
+  const clean = value.replace(/\s+/g, '');
+  return /^(\+234|234|0)[789]\d{8,9}$/.test(clean) || /^0\d{10}$/.test(clean);
+}
+
+function normalizeContact(value) {
+  if (isPhoneInput(value)) {
+    return { isPhone: true, email: phoneToEmail(value), display: value };
+  }
+  return { isPhone: false, email: value, display: value };
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const [step, setStep] = useState('register'); // 'register' | 'confirm' | 'login'
-  const [form, setForm] = useState({ name: '', email: '', password: '', code: '' });
+  const [form, setForm] = useState({ name: '', contact: '', password: '', code: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -18,10 +38,17 @@ export default function Register() {
   async function handleRegister(e) {
     e.preventDefault();
     setLoading(true); setError('');
+    const { isPhone, email } = normalizeContact(form.contact);
     try {
-      await registerGuest({ name: form.name, email: form.email, password: form.password });
-      setMessage('Check your email for a 6-digit verification code.');
-      setStep('confirm');
+      await registerGuest({ name: form.name, email, password: form.password });
+      if (isPhone) {
+        // Pre-signup trigger auto-confirms, so go straight to login
+        await login(email, form.password);
+        navigate('/gallery');
+      } else {
+        setMessage('Check your email for a 6-digit verification code.');
+        setStep('confirm');
+      }
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally { setLoading(false); }
@@ -30,9 +57,10 @@ export default function Register() {
   async function handleConfirm(e) {
     e.preventDefault();
     setLoading(true); setError('');
+    const { email } = normalizeContact(form.contact);
     try {
-      await confirmRegistration(form.email, form.code);
-      await login(form.email, form.password);
+      await confirmRegistration(email, form.code);
+      await login(email, form.password);
       navigate('/gallery');
     } catch (err) {
       setError(err.message || 'Verification failed. Please check the code.');
@@ -42,46 +70,51 @@ export default function Register() {
   async function handleLogin(e) {
     e.preventDefault();
     setLoading(true); setError('');
+    const { email } = normalizeContact(form.contact);
     try {
-      await login(form.email, form.password);
+      await login(email, form.password);
       navigate('/gallery');
     } catch (err) {
-      setError(err.message || 'Login failed. Check your email and password.');
+      setError(err.message || 'Login failed. Check your details and try again.');
     } finally { setLoading(false); }
   }
 
-  const titles = {
-    register: 'Join the Celebration',
-    confirm:  'Verify Your Email',
-    login:    'Welcome Back',
-  };
+  const inputHint = isPhoneInput(form.contact)
+    ? 'Phone detected — no email verification needed'
+    : form.contact.includes('@') ? null : 'Enter your email or Nigerian phone number (e.g. 08012345678)';
+
+  const titles = { register: 'Join the Celebration', confirm: 'Verify Your Email', login: 'Welcome Back' };
   const subtitles = {
     register: 'Create your guest account to upload and find your photos',
-    confirm:  `We sent a code to ${form.email}`,
+    confirm:  `We sent a code to ${form.contact}`,
     login:    'Sign in to access your wedding photos',
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        {/* Header */}
         <div style={styles.cardHeader}>
           <div style={styles.logo}>B &amp; K</div>
           <h1 style={styles.title}>{titles[step]}</h1>
           <p style={styles.subtitle}>{subtitles[step]}</p>
         </div>
 
-        {/* Step indicators */}
-        <div style={styles.steps}>
-          {['register', 'confirm'].map((s, i) => (
-            <React.Fragment key={s}>
-              <div style={{ ...styles.stepDot, ...(step === s || (step === 'login' && i === 0) ? styles.stepDotActive : step === 'confirm' && i === 0 ? styles.stepDotDone : {}) }}>
-                {step === 'confirm' && i === 0 ? '✓' : i + 1}
-              </div>
-              {i === 0 && <div style={{ ...styles.stepLine, ...(step === 'confirm' ? styles.stepLineDone : {}) }} />}
-            </React.Fragment>
-          ))}
-        </div>
+        {step !== 'login' && (
+          <div style={styles.steps}>
+            {['register', 'confirm'].map((s, i) => (
+              <React.Fragment key={s}>
+                <div style={{
+                  ...styles.stepDot,
+                  ...(step === s || (step === 'login' && i === 0) ? styles.stepDotActive : {}),
+                  ...(step === 'confirm' && i === 0 ? styles.stepDotDone : {}),
+                }}>
+                  {step === 'confirm' && i === 0 ? '✓' : i + 1}
+                </div>
+                {i === 0 && <div style={{ ...styles.stepLine, ...(step === 'confirm' ? styles.stepLineDone : {}) }} />}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
 
         {error   && <div className="alert alert-error">{error}</div>}
         {message && <div className="alert alert-success">{message}</div>}
@@ -94,8 +127,19 @@ export default function Register() {
               <input name="name" placeholder="e.g. Sarah Johnson" value={form.name} onChange={handleChange} required />
             </div>
             <div className="form-group">
-              <label>Email Address</label>
-              <input name="email" type="email" placeholder="sarah@example.com" value={form.email} onChange={handleChange} required />
+              <label>Phone or Email</label>
+              <input
+                name="contact"
+                placeholder="08012345678 or sarah@example.com"
+                value={form.contact}
+                onChange={handleChange}
+                required
+              />
+              {inputHint && (
+                <span style={{ fontSize: '12px', color: isPhoneInput(form.contact) ? '#166534' : '#7A6060', marginTop: '4px', display: 'block' }}>
+                  {isPhoneInput(form.contact) ? '✓ ' : ''}{inputHint}
+                </span>
+              )}
             </div>
             <div className="form-group">
               <label>Password (min 8 characters)</label>
@@ -111,7 +155,7 @@ export default function Register() {
           </form>
         )}
 
-        {/* Confirm */}
+        {/* Confirm (email verification) */}
         {step === 'confirm' && (
           <form onSubmit={handleConfirm}>
             <div className="form-group" style={{ textAlign: 'center' }}>
@@ -140,8 +184,8 @@ export default function Register() {
         {step === 'login' && (
           <form onSubmit={handleLogin}>
             <div className="form-group">
-              <label>Email Address</label>
-              <input name="email" type="email" placeholder="sarah@example.com" value={form.email} onChange={handleChange} required />
+              <label>Phone or Email</label>
+              <input name="contact" placeholder="08012345678 or sarah@example.com" value={form.contact} onChange={handleChange} required />
             </div>
             <div className="form-group">
               <label>Password</label>
@@ -164,58 +208,38 @@ export default function Register() {
 const styles = {
   page: {
     minHeight: 'calc(100vh - 68px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: '40px 16px',
     background: 'linear-gradient(160deg, #fff5f5 0%, #FDF6EE 100%)',
   },
   card: {
-    background: 'white',
-    borderRadius: '20px',
+    background: 'white', borderRadius: '20px',
     boxShadow: '0 8px 40px rgba(122,20,40,0.12)',
-    padding: '40px',
-    width: '100%',
-    maxWidth: '440px',
+    padding: '40px', width: '100%', maxWidth: '440px',
     border: '1px solid #EDE0D8',
   },
   cardHeader: { textAlign: 'center', marginBottom: '28px' },
   logo: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '52px',
-    height: '52px',
-    borderRadius: '50%',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    width: '52px', height: '52px', borderRadius: '50%',
     background: 'linear-gradient(135deg, #7A1428, #5C0F1E)',
-    color: 'white',
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
-    fontSize: '18px',
-    fontWeight: '600',
-    marginBottom: '16px',
+    color: 'white', fontFamily: "'Cormorant Garamond', Georgia, serif",
+    fontSize: '18px', fontWeight: '600', marginBottom: '16px',
   },
   title: { fontSize: '26px', color: '#2D2020', margin: '0 0 6px' },
   subtitle: { fontSize: '14px', color: '#7A6060', margin: 0 },
-  steps: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0',
-    marginBottom: '28px',
-  },
+  steps: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px' },
   stepDot: {
-    width: '30px', height: '30px',
-    borderRadius: '50%',
-    background: '#EDE0D8',
-    color: '#7A6060',
+    width: '30px', height: '30px', borderRadius: '50%',
+    background: '#EDE0D8', color: '#7A6060',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: '12px', fontWeight: '700',
   },
   stepDotActive: { background: '#7A1428', color: 'white' },
-  stepDotDone: { background: '#5C3D2E', color: 'white' },
-  stepLine: { width: '60px', height: '2px', background: '#EDE0D8' },
+  stepDotDone:   { background: '#5C3D2E', color: 'white' },
+  stepLine:     { width: '60px', height: '2px', background: '#EDE0D8' },
   stepLineDone: { background: '#5C3D2E' },
   fullBtn: { width: '100%', justifyContent: 'center', marginTop: '4px', padding: '14px' },
   switchLink: { textAlign: 'center', marginTop: '18px', fontSize: '14px', color: '#7A6060' },
-  switchCta: { color: '#7A1428', cursor: 'pointer', fontWeight: '600' },
+  switchCta:  { color: '#7A1428', cursor: 'pointer', fontWeight: '600' },
 };
