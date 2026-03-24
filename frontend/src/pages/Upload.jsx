@@ -58,7 +58,8 @@ export default function Upload() {
           setFiles(prev => prev.map((f, i) => i === idx ? { ...f, progress } : f));
         })
           .then(result => {
-            setFiles(prev => prev.map((f, i) => i === idx ? { ...f, status: 'done', progress: 100 } : f));
+            const status = result.duplicate ? 'duplicate' : 'done';
+            setFiles(prev => prev.map((f, i) => i === idx ? { ...f, status, progress: 100 } : f));
             return { success: true, ...result };
           })
           .catch(err => {
@@ -94,6 +95,13 @@ export default function Upload() {
       <div style={styles.header}>
         <h1 style={styles.title}>Upload Photos</h1>
         <p style={styles.subtitle}>Share your favourite moments from Bamai &amp; Kazah's celebration</p>
+      </div>
+
+      <div style={styles.infoBanner}>
+        <span style={styles.infoIcon}>💡</span>
+        <p style={styles.infoText}>
+          Upload photos <strong>you took at the wedding</strong>. Once uploaded, every guest can use a selfie to instantly find all photos they appear in — including yours!
+        </p>
       </div>
 
       {/* Success banner */}
@@ -161,7 +169,7 @@ export default function Upload() {
                       <div style={styles.miniSpinner} />
                     </div>
                   )}
-                  {file.status === 'done' && <div style={styles.doneOverlay}>✓</div>}
+                  {(file.status === 'done' || file.status === 'duplicate') && <div style={styles.doneOverlay}>✓</div>}
                   {file.status === 'error' && <div style={{ ...styles.doneOverlay, background: 'rgba(155,28,28,0.8)' }}>✕</div>}
                 </div>
                 <div style={styles.fileInfo}>
@@ -172,6 +180,7 @@ export default function Upload() {
                     </div>
                   )}
                   {file.status === 'done' && <span style={styles.statusDone}>Uploaded</span>}
+                  {file.status === 'duplicate' && <span style={styles.statusDuplicate}>Already saved</span>}
                   {file.status === 'error' && <span style={styles.statusError}>Failed</span>}
                   {file.status === 'pending' && !uploading && (
                     <button onClick={() => removeFile(idx)} style={styles.removeBtn}>Remove</button>
@@ -261,7 +270,15 @@ const styles = {
   fileName: { fontSize: '11px', color: '#7A6060', margin: '0 0 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   progressBar: { background: '#EDE0D8', borderRadius: '4px', height: '5px' },
   progressFill: { background: 'linear-gradient(90deg, #7A1428, #C4956A)', height: '100%', borderRadius: '4px', transition: 'width 0.2s' },
+  infoBanner: {
+    display: 'flex', alignItems: 'flex-start', gap: '12px',
+    background: '#EFF6FF', border: '1px solid #BFDBFE',
+    borderRadius: '12px', padding: '14px 18px', marginBottom: '24px',
+  },
+  infoIcon: { fontSize: '18px', flexShrink: 0 },
+  infoText: { fontSize: '14px', color: '#1E40AF', margin: 0, lineHeight: '1.6' },
   statusDone: { fontSize: '12px', color: '#166534', fontWeight: '600' },
+  statusDuplicate: { fontSize: '12px', color: '#92400E', fontWeight: '600' },
   statusError: { fontSize: '12px', color: '#9B1C1C', fontWeight: '600' },
   removeBtn: { background: 'none', border: 'none', color: '#C4956A', fontSize: '12px', cursor: 'pointer', padding: 0 },
   actionRow: { display: 'flex', gap: '16px', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap' },

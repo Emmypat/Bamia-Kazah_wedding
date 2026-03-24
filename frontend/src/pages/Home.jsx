@@ -109,15 +109,55 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Two primary actions ───────────────────── */}
+      <section style={styles.actionsSection}>
+        <p style={styles.actionsPre}>What would you like to do?</p>
+        <div style={styles.actionCards}>
+
+          <div style={styles.actionCard}>
+            <div style={styles.actionEmoji}>📸</div>
+            <h2 style={styles.actionTitle}>Share Your Photos</h2>
+            <p style={styles.actionDesc}>
+              Did you take photos at the wedding? Upload them here so every guest can find themselves in your shots using AI face search.
+            </p>
+            <div style={styles.actionSteps}>
+              <span style={styles.actionStep}>1. Register a free account</span>
+              <span style={styles.actionStep}>2. Upload your photos</span>
+              <span style={styles.actionStep}>3. AI detects every face automatically</span>
+            </div>
+            <Link to="/upload" className="btn btn-primary" style={styles.actionBtn}>
+              Upload Photos
+            </Link>
+          </div>
+
+          <div style={{ ...styles.actionCard, borderColor: '#C4956A' }}>
+            <div style={styles.actionEmoji}>🤳</div>
+            <h2 style={styles.actionTitle}>Find Your Photos</h2>
+            <p style={styles.actionDesc}>
+              Want to find every photo you appear in across all guest uploads? Just take a selfie — our AI scans the entire gallery for your face in seconds.
+            </p>
+            <div style={styles.actionSteps}>
+              <span style={styles.actionStep}>1. Register a free account</span>
+              <span style={styles.actionStep}>2. Upload a selfie</span>
+              <span style={styles.actionStep}>3. Download every photo of you</span>
+            </div>
+            <Link to="/search" className="btn btn-secondary" style={styles.actionBtn}>
+              Find My Photos
+            </Link>
+          </div>
+
+        </div>
+      </section>
+
       {/* ── How it works ─────────────────────────── */}
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>How It Works</h2>
         <div style={styles.steps}>
           {[
-            { num: '1', icon: '📱', title: 'Register', desc: 'Create your guest account with just your name and email. It takes under a minute.' },
-            { num: '2', icon: '📸', title: 'Upload Photos', desc: 'Share your favourite moments from the ceremony and reception directly from your phone.' },
-            { num: '3', icon: '🤳', title: 'Find Yourself', desc: 'Upload a selfie and our AI instantly finds every photo you appear in across all uploads.' },
-            { num: '4', icon: '💌', title: 'Get Notified', desc: 'Receive an automatic email alert whenever the couple appears in a newly uploaded photo.' },
+            { num: '1', icon: '📱', title: 'Register', desc: 'Create a free guest account with your name and phone number or email. Takes under a minute.' },
+            { num: '2', icon: '📸', title: 'Upload Photos', desc: 'Share photos you took at the ceremony and reception. Our AI automatically detects every face.' },
+            { num: '3', icon: '🤳', title: 'Find Yourself', desc: 'Take a selfie and our AI instantly finds every photo you appear in across all guest uploads.' },
+            { num: '4', icon: '📲', title: 'Share Memories', desc: 'Download your photos and share them directly to WhatsApp, Facebook, or any platform.' },
           ].map((s) => (
             <div key={s.num} style={styles.stepCard}>
               <div style={styles.stepNum}>{s.num}</div>
@@ -241,6 +281,37 @@ const styles = {
   countdownDone: { color: '#7A1428', fontSize: '18px', margin: '20px 0', fontStyle: 'italic' },
 
   heroCTA: { display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '14px', marginTop: '12px' },
+
+  /* Action cards */
+  actionsSection: {
+    maxWidth: '900px', margin: '0 auto', padding: '64px 20px 40px',
+    textAlign: 'center',
+  },
+  actionsPre: {
+    fontSize: '12px', letterSpacing: '3px', textTransform: 'uppercase',
+    color: '#C4956A', marginBottom: '28px', fontWeight: '600',
+  },
+  actionCards: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '24px', textAlign: 'left',
+  },
+  actionCard: {
+    background: 'white', borderRadius: '20px', padding: '36px 32px',
+    border: '2px solid #7A1428',
+    boxShadow: '0 8px 32px rgba(122,20,40,0.10)',
+    display: 'flex', flexDirection: 'column', gap: '16px',
+  },
+  actionEmoji: { fontSize: '48px', lineHeight: 1 },
+  actionTitle: { fontSize: '24px', color: '#2D2020', margin: 0, fontFamily: "'Cormorant Garamond', Georgia, serif" },
+  actionDesc: { fontSize: '15px', color: '#7A6060', lineHeight: '1.7', margin: 0 },
+  actionSteps: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  actionStep: {
+    fontSize: '13px', color: '#5C3D2E', fontWeight: '500',
+    paddingLeft: '16px', position: 'relative',
+    '::before': { content: '"→"', position: 'absolute', left: 0 },
+  },
+  actionBtn: { alignSelf: 'flex-start', marginTop: '4px', padding: '12px 28px' },
 
   /* How it works */
   section: { maxWidth: '1060px', margin: '0 auto', padding: '72px 20px' },

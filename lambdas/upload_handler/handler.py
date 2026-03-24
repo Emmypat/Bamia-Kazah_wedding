@@ -27,8 +27,8 @@ Environment variables required:
 
 import json
 import base64
+import hashlib
 import os
-import uuid
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -157,11 +157,25 @@ def handle_upload(event: dict) -> dict:
     if len(image_bytes) > MAX_FILE_SIZE_BYTES:
         return error_response(413, f"File too large. Max size: {MAX_FILE_SIZE_BYTES // (1024*1024)}MB")
 
-    # Generate unique S3 key
-    # Format: uploads/YYYY/MM/DD/<uuid><extension>
+    # Generate a deterministic S3 key from the file's SHA-256 hash.
+    # This ensures identical photos always map to the same key,
+    # so duplicate uploads are detected with a single DynamoDB lookup.
     ext = ALLOWED_CONTENT_TYPES[content_type]
-    today = datetime.now(timezone.utc).strftime("%Y/%m/%d")
-    photo_key = f"uploads/{today}/{uuid.uuid4()}{ext}"
+    file_hash = hashlib.sha256(image_bytes).hexdigest()
+    photo_key = f"uploads/{file_hash}{ext}"
+
+    # Duplicate check: if this exact photo was already uploaded, return
+    # the existing record without re-uploading or re-indexing faces.
+    existing = photos_table.get_item(Key={"photoKey": photo_key}).get("Item")
+    if existing:
+        logger.info(f"Duplicate photo detected: {photo_key}")
+        return success_response({
+            "message": "Photo already uploaded",
+            "photoKey": photo_key,
+            "facesDetected": int(existing.get("faceCount", 0)),
+            "uploadedAt": existing.get("uploadedAt", utc_now()),
+            "duplicate": True,
+        })
 
     # Upload to S3
     try:
@@ -195,6 +209,7 @@ def handle_upload(event: dict) -> dict:
         "photoKey": photo_key,
         "facesDetected": len(face_ids),
         "uploadedAt": utc_now(),
+        "duplicate": False,
     })
 
 

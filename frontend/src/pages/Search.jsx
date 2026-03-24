@@ -72,6 +72,12 @@ export default function Search() {
       <p style={styles.subtitle}>
         Upload a selfie and our AI will find every photo you appear in across all guest uploads.
       </p>
+      <div style={styles.infoBanner}>
+        <span style={{ fontSize: '18px' }}>🤳</span>
+        <p style={{ fontSize: '14px', color: '#166534', margin: 0, lineHeight: '1.6' }}>
+          <strong>How it works:</strong> Take or upload a clear selfie — our AI scans every photo uploaded by all guests and pulls out every one you appear in. No searching needed.
+        </p>
+      </div>
 
       <div style={styles.layout}>
         {/* Left panel */}
@@ -201,7 +207,12 @@ export default function Search() {
 
 const styles = {
   title: { fontSize: 'clamp(24px, 4vw, 34px)', color: '#2D2020', margin: '0 0 8px' },
-  subtitle: { color: '#7A6060', marginBottom: '32px', fontSize: '15px' },
+  subtitle: { color: '#7A6060', marginBottom: '16px', fontSize: '15px' },
+  infoBanner: {
+    display: 'flex', alignItems: 'flex-start', gap: '12px',
+    background: '#F0FDF4', border: '1px solid #BBF7D0',
+    borderRadius: '12px', padding: '14px 18px', marginBottom: '28px',
+  },
   layout: {
     display: 'grid',
     gridTemplateColumns: 'minmax(260px, 320px) 1fr',
