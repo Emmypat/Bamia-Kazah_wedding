@@ -19,8 +19,7 @@ export default function Search() {
 
   async function handleSearch() {
     if (!selfie) return;
-    setSearching(true);
-    setError('');
+    setSearching(true); setError('');
     try {
       const data = await searchByFace(selfie);
       setResults(data);
@@ -34,41 +33,43 @@ export default function Search() {
   function handleDownload(url, idx) {
     const a = document.createElement('a');
     a.href = url;
-    a.download = `wedding-photo-${idx + 1}.jpg`;
+    a.download = `bamai-kazah-photo-${idx + 1}.jpg`;
     a.click();
   }
 
   return (
     <div className="page">
-      <h1 style={styles.title}>🔍 Find My Photos</h1>
+      <h1 style={styles.title}>Find My Photos</h1>
       <p style={styles.subtitle}>
-        Upload a selfie and our AI will find every photo you appear in — instantly.
+        Upload a selfie and our AI will find every photo you appear in across all guest uploads.
       </p>
 
       <div style={styles.layout}>
-        {/* Selfie upload panel */}
-        <div className="card" style={styles.uploadPanel}>
+        {/* Left panel */}
+        <div style={styles.panel}>
           <h3 style={styles.panelTitle}>Your Selfie</h3>
-          <p style={styles.hint}>Use a clear, front-facing photo with good lighting for best results.</p>
+          <p style={styles.hint}>Use a clear, front-facing photo in good lighting for the best results.</p>
 
           {preview ? (
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <div style={styles.previewWrap}>
               <img src={preview} alt="Your selfie" style={styles.selfiePreview} />
               <button
                 onClick={() => { setSelfie(null); setPreview(null); setResults(null); }}
-                style={styles.clearBtn}
+                style={styles.changeBtn}
               >
-                Choose different photo
+                Choose a different photo
               </button>
             </div>
           ) : (
             <div style={styles.selfieOptions}>
               <label style={styles.optionBtn}>
-                📷 Take Selfie
+                <span style={{ fontSize: '24px', display: 'block', marginBottom: '6px' }}>📷</span>
+                Take Selfie
                 <input type="file" accept="image/*" capture="user" onChange={handleFileSelect} style={{ display: 'none' }} />
               </label>
               <label style={styles.optionBtn}>
-                🖼️ Upload Photo
+                <span style={{ fontSize: '24px', display: 'block', marginBottom: '6px' }}>🖼️</span>
+                Upload Photo
                 <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
               </label>
             </div>
@@ -77,64 +78,80 @@ export default function Search() {
           {error && <div className="alert alert-error">{error}</div>}
 
           <button
-            className="btn-primary"
+            className="btn btn-primary"
             onClick={handleSearch}
             disabled={!selfie || searching}
-            style={{ width: '100%' }}
+            style={styles.searchBtn}
           >
-            {searching ? '🔍 Searching...' : 'Find My Photos →'}
+            {searching ? 'Searching...' : 'Find My Photos'}
           </button>
 
-          <p style={styles.privacyNote}>
-            🔒 Your selfie is never stored. It's used only for matching and then discarded.
-          </p>
+          <div style={styles.privacyNote}>
+            <span style={{ fontSize: '16px' }}>🔒</span>
+            <p style={{ margin: 0, fontSize: '12px', color: '#7A6060' }}>
+              Your selfie is never stored or shared. It's used only for matching, then discarded immediately.
+            </p>
+          </div>
         </div>
 
-        {/* Results panel */}
+        {/* Right panel */}
         <div style={styles.resultsPanel}>
           {results === null && !searching && (
             <div style={styles.emptyState}>
-              <div style={{ fontSize: '64px' }}>🤳</div>
-              <p>Your matching photos will appear here</p>
+              <div style={{ fontSize: '72px', marginBottom: '16px' }}>🤳</div>
+              <h3 style={styles.emptyTitle}>Your photos will appear here</h3>
+              <p style={styles.emptyDesc}>Upload a selfie on the left to get started.</p>
             </div>
           )}
 
           {searching && (
             <div style={styles.emptyState}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-              <p>Scanning photos for your face...</p>
+              <div className="spinner" style={{ margin: '0 auto 20px' }} />
+              <h3 style={styles.emptyTitle}>Scanning photos...</h3>
+              <p style={styles.emptyDesc}>Our AI is searching for your face across all uploaded photos.</p>
             </div>
           )}
 
           {results && (
-            <>
-              <h3 style={styles.resultsTitle}>
-                {results.matchCount > 0
-                  ? `Found ${results.matchCount} photo${results.matchCount !== 1 ? 's' : ''} of you! 🎉`
-                  : 'No photos found yet'}
-              </h3>
+            <div>
+              <div style={styles.resultsHeader}>
+                <h3 style={styles.resultsTitle}>
+                  {results.matchCount > 0
+                    ? `Found ${results.matchCount} photo${results.matchCount !== 1 ? 's' : ''} of you`
+                    : 'No photos found'}
+                </h3>
+                {results.matchCount > 0 && (
+                  <span style={styles.matchBadge}>{results.matchCount} match{results.matchCount !== 1 ? 'es' : ''}</span>
+                )}
+              </div>
+
               {results.matchCount === 0 && (
                 <div className="alert alert-info">
-                  {results.message || "Try again after more photos have been uploaded, or use a clearer selfie."}
+                  {results.message || 'No photos found yet. Try again after more photos have been uploaded, or use a clearer selfie.'}
                 </div>
               )}
+
               <div style={styles.photoGrid}>
                 {results.photos?.map((photo, idx) => (
                   <div key={idx} style={styles.photoCard}>
-                    <img src={photo.url} alt={`Match ${idx + 1}`} style={styles.photoThumb} loading="lazy" />
+                    <div style={styles.photoThumbWrap}>
+                      <img src={photo.url} alt={`Match ${idx + 1}`} style={styles.photoThumb} loading="lazy" />
+                    </div>
                     <div style={styles.photoActions}>
                       <button onClick={() => handleDownload(photo.url, idx)} style={styles.downloadBtn}>
-                        ⬇️ Download
+                        Download
                       </button>
                       <a href={photo.url} target="_blank" rel="noreferrer" style={styles.viewLink}>
-                        View full size
+                        View
                       </a>
                     </div>
-                    <p style={styles.expiryText}>Link valid until {new Date(photo.expiresAt).toLocaleDateString()}</p>
+                    <p style={styles.expiryText}>
+                      Valid until {new Date(photo.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -143,28 +160,69 @@ export default function Search() {
 }
 
 const styles = {
-  title: { fontSize: '28px', fontWeight: '400', color: '#3a3a3a', margin: '0 0 8px' },
-  subtitle: { color: '#888', marginBottom: '28px' },
-  layout: { display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '24px', alignItems: 'start' },
-  uploadPanel: { position: 'sticky', top: '80px' },
-  panelTitle: { fontSize: '18px', fontWeight: '400', color: '#3a3a3a', margin: '0 0 8px' },
-  hint: { fontSize: '13px', color: '#888', margin: '0 0 20px', lineHeight: '1.5' },
-  selfiePreview: { width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #d4a7a7', marginBottom: '12px' },
-  clearBtn: { display: 'block', margin: '0 auto', background: 'none', border: 'none', color: '#aaa', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' },
+  title: { fontSize: 'clamp(24px, 4vw, 34px)', color: '#2D2020', margin: '0 0 8px' },
+  subtitle: { color: '#7A6060', marginBottom: '32px', fontSize: '15px' },
+  layout: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(260px, 320px) 1fr',
+    gap: '28px',
+    alignItems: 'start',
+  },
+  panel: {
+    background: 'white',
+    borderRadius: '16px',
+    padding: '28px',
+    border: '1px solid #EDE0D8',
+    boxShadow: '0 4px 24px rgba(122,20,40,0.06)',
+    position: 'sticky',
+    top: '84px',
+  },
+  panelTitle: { fontSize: '20px', color: '#2D2020', margin: '0 0 8px' },
+  hint: { fontSize: '13px', color: '#7A6060', margin: '0 0 20px', lineHeight: '1.6' },
+  previewWrap: { textAlign: 'center', marginBottom: '20px' },
+  selfiePreview: {
+    width: '140px', height: '140px',
+    borderRadius: '50%', objectFit: 'cover',
+    border: '3px solid #7A1428',
+    marginBottom: '12px', display: 'block', margin: '0 auto 12px',
+  },
+  changeBtn: { background: 'none', border: 'none', color: '#C4956A', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', display: 'block', margin: '8px auto 0' },
   selfieOptions: { display: 'flex', gap: '12px', marginBottom: '20px' },
   optionBtn: {
-    flex: 1, display: 'block', padding: '12px', border: '1px solid #d4a7a7', borderRadius: '8px',
-    textAlign: 'center', cursor: 'pointer', fontSize: '14px', color: '#c49a9a', background: '#fdf8f8',
+    flex: 1, display: 'block', padding: '16px 8px',
+    border: '1.5px solid #EDE0D8', borderRadius: '12px',
+    textAlign: 'center', cursor: 'pointer',
+    fontSize: '13px', color: '#5C3D2E', background: '#FDF6EE',
+    fontWeight: '500', transition: 'all 0.2s',
   },
-  privacyNote: { fontSize: '12px', color: '#aaa', textAlign: 'center', marginTop: '12px', lineHeight: '1.5' },
+  searchBtn: { width: '100%', justifyContent: 'center', padding: '14px', marginBottom: '16px' },
+  privacyNote: {
+    display: 'flex', gap: '10px', alignItems: 'flex-start',
+    background: '#F7EDE0', borderRadius: '10px', padding: '12px',
+  },
   resultsPanel: { minHeight: '300px' },
-  emptyState: { textAlign: 'center', padding: '60px 20px', color: '#aaa' },
-  resultsTitle: { fontSize: '20px', fontWeight: '400', color: '#3a3a3a', margin: '0 0 16px' },
+  emptyState: { textAlign: 'center', padding: '60px 20px', color: '#7A6060' },
+  emptyTitle: { fontSize: '20px', color: '#5C3D2E', marginBottom: '8px' },
+  emptyDesc: { fontSize: '14px', color: '#7A6060' },
+  resultsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' },
+  resultsTitle: { fontSize: '22px', color: '#2D2020' },
+  matchBadge: {
+    background: '#F5E6E9', color: '#7A1428',
+    fontSize: '12px', fontWeight: '700',
+    padding: '4px 14px', borderRadius: '20px',
+    border: '1px solid #e8c0ca',
+  },
   photoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' },
-  photoCard: { background: '#fff', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' },
-  photoThumb: { width: '100%', height: '160px', objectFit: 'cover', display: 'block' },
-  photoActions: { padding: '10px', display: 'flex', gap: '8px', alignItems: 'center' },
-  downloadBtn: { background: 'none', border: '1px solid #d4a7a7', color: '#c49a9a', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontSize: '12px' },
-  viewLink: { fontSize: '12px', color: '#aaa', textDecoration: 'none' },
-  expiryText: { fontSize: '11px', color: '#ccc', padding: '0 10px 8px', margin: 0 },
+  photoCard: { background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 16px rgba(122,20,40,0.07)', border: '1px solid #EDE0D8' },
+  photoThumbWrap: { height: '160px', overflow: 'hidden' },
+  photoThumb: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  photoActions: { padding: '10px 12px', display: 'flex', gap: '10px', alignItems: 'center' },
+  downloadBtn: {
+    background: 'linear-gradient(135deg, #7A1428, #5C0F1E)',
+    border: 'none', color: 'white',
+    padding: '7px 16px', borderRadius: '20px',
+    cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+  },
+  viewLink: { fontSize: '12px', color: '#C4956A', textDecoration: 'none', fontWeight: '500' },
+  expiryText: { fontSize: '11px', color: '#C4956A', padding: '0 12px 10px', margin: 0 },
 };

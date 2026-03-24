@@ -1,16 +1,24 @@
-/* Global Styles — Wedding Photo Platform */
+/* Global Styles — Bamai & Kazah Wedding Photo Platform */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap');
+
 :root {
-  --rose: #d4a7a7;
-  --rose-dark: #c49a9a;
-  --rose-light: #f5eaea;
-  --gold: #c9a84c;
-  --text: #3a3a3a;
-  --text-light: #888888;
-  --bg: #faf8f6;
+  /* Wedding colours of the day */
+  --burgundy: #7A1428;
+  --burgundy-dark: #5C0F1E;
+  --burgundy-light: #F5E6E9;
+  --onion: #C4956A;
+  --onion-light: #F7EDE0;
+  --brown: #5C3D2E;
+  --brown-light: #EDE0D8;
+
+  /* UI colours */
+  --text: #2D2020;
+  --text-light: #7A6060;
+  --bg: #FDF6EE;
   --white: #ffffff;
-  --border: #eeeeee;
-  --shadow: 0 4px 24px rgba(0,0,0,0.07);
-  --radius: 12px;
+  --border: #EDE0D8;
+  --shadow: 0 4px 24px rgba(122, 20, 40, 0.08);
+  --radius: 14px;
 }
 
 * {
@@ -34,18 +42,17 @@ h1, h2, h3 {
 }
 
 a {
-  color: var(--rose-dark);
+  color: var(--burgundy);
   text-decoration: none;
 }
 
-a:hover {
-  text-decoration: underline;
-}
+a:hover { text-decoration: underline; }
 
-/* Buttons */
+/* ── Buttons ─────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 12px 28px;
   border-radius: 50px;
@@ -55,170 +62,130 @@ a:hover {
   border: none;
   transition: all 0.2s ease;
   text-decoration: none;
+  font-family: 'Inter', sans-serif;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--rose), var(--rose-dark));
+  background: linear-gradient(135deg, var(--burgundy), var(--burgundy-dark));
   color: white;
 }
-
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(212, 167, 167, 0.4);
+  box-shadow: 0 6px 20px rgba(122, 20, 40, 0.35);
   text-decoration: none;
   color: white;
 }
 
 .btn-secondary {
   background: white;
-  color: var(--rose-dark);
-  border: 2px solid var(--rose);
+  color: var(--burgundy);
+  border: 2px solid var(--burgundy);
 }
-
 .btn-secondary:hover {
-  background: var(--rose-light);
+  background: var(--burgundy-light);
   text-decoration: none;
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
   transform: none;
 }
 
-/* Card */
+/* ── Card ────────────────────────────────────────── */
 .card {
   background: white;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 32px;
+  border: 1px solid var(--border);
 }
 
-/* Form elements */
+/* ── Form elements ───────────────────────────────── */
 input, select, textarea {
   width: 100%;
   padding: 12px 16px;
   border: 1.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 15px;
   font-family: inherit;
   color: var(--text);
   transition: border-color 0.2s;
   background: white;
 }
-
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--rose);
+  border-color: var(--burgundy);
+  box-shadow: 0 0 0 3px rgba(122, 20, 40, 0.08);
 }
 
 label {
   display: block;
   margin-bottom: 6px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.form-group {
-  margin-bottom: 20px;
-}
+.form-group { margin-bottom: 20px; }
 
-/* Layout */
-.container {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
+/* ── Layout ──────────────────────────────────────── */
+.container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+.page { min-height: calc(100vh - 70px); padding: 40px 20px; max-width: 1060px; margin: 0 auto; }
 
-.page {
-  min-height: calc(100vh - 70px);
-  padding: 40px 20px;
-}
-
-/* Loading spinner */
+/* ── Loading spinner ─────────────────────────────── */
 .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--rose-light);
-  border-top-color: var(--rose);
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--burgundy-light);
+  border-top-color: var(--burgundy);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Photo grid */
+/* ── Photo grid ──────────────────────────────────── */
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
 }
 
-.photo-card {
-  border-radius: 8px;
-  overflow: hidden;
-  background: white;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s;
-}
-
-.photo-card:hover {
-  transform: translateY(-3px);
-}
-
-.photo-card img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  display: block;
-}
-
-.photo-card-footer {
-  padding: 10px 12px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Error / success messages */
+/* ── Alerts ──────────────────────────────────────── */
 .alert {
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 13px 18px;
+  border-radius: 10px;
   font-size: 14px;
   margin-bottom: 16px;
 }
+.alert-error  { background: #fff0f2; color: #9B1C1C; border: 1px solid #fcc; }
+.alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.alert-info   { background: #f0f4ff; color: #1e40af; border: 1px solid #bfdbfe; }
 
-.alert-error {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-
-.alert-success {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
-}
-
-/* Dropzone */
+/* ── Dropzone ────────────────────────────────────── */
 .dropzone {
-  border: 2px dashed var(--rose);
+  border: 2px dashed var(--onion);
   border-radius: var(--radius);
   padding: 48px 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: var(--rose-light);
+  background: var(--onion-light);
 }
-
 .dropzone:hover, .dropzone.active {
-  background: #f0e4e4;
-  border-color: var(--rose-dark);
+  background: #f0e0cc;
+  border-color: var(--onion);
 }
 
-.dropzone-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+/* ── Mobile nav ──────────────────────────────────── */
+.nav-desktop { display: flex; align-items: center; gap: 28px; }
+.nav-hamburger { display: none; }
+
+@media (max-width: 680px) {
+  .nav-desktop  { display: none; }
+  .nav-hamburger { display: flex; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 4px; }
+  .page { padding: 24px 16px; }
+  .card { padding: 20px; }
 }
