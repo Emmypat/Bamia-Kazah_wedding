@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { registerGuest, confirmRegistration, login } from '../utils/auth';
+import { registerGuest, login } from '../utils/auth';
 
 // Convert Nigerian phone to synthetic email for Cognito
 // e.g. "08012345678" or "+2348012345678" → "2348012345678@weddingguest.ng"
@@ -24,11 +24,10 @@ function normalizeContact(value) {
 
 export default function Register() {
   const navigate = useNavigate();
-  const [step, setStep] = useState('register'); // 'register' | 'confirm' | 'login'
-  const [form, setForm] = useState({ name: '', contact: '', password: '', code: '' });
+  const [step, setStep] = useState('register'); // 'register' | 'login'
+  const [form, setForm] = useState({ name: '', contact: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -38,32 +37,14 @@ export default function Register() {
   async function handleRegister(e) {
     e.preventDefault();
     setLoading(true); setError('');
-    const { isPhone, email } = normalizeContact(form.contact);
-    try {
-      await registerGuest({ name: form.name, email, password: form.password });
-      if (isPhone) {
-        // Pre-signup trigger auto-confirms, so go straight to login
-        await login(email, form.password);
-        navigate('/gallery');
-      } else {
-        setMessage('Check your email for a 6-digit verification code.');
-        setStep('confirm');
-      }
-    } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
-    } finally { setLoading(false); }
-  }
-
-  async function handleConfirm(e) {
-    e.preventDefault();
-    setLoading(true); setError('');
     const { email } = normalizeContact(form.contact);
     try {
-      await confirmRegistration(email, form.code);
+      await registerGuest({ name: form.name, email, password: form.password });
+      // Pre-signup Lambda auto-confirms everyone — go straight to gallery
       await login(email, form.password);
       navigate('/gallery');
     } catch (err) {
-      setError(err.message || 'Verification failed. Please check the code.');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally { setLoading(false); }
   }
 
@@ -83,10 +64,9 @@ export default function Register() {
     ? 'Phone detected — no email verification needed'
     : form.contact.includes('@') ? null : 'Enter your email or Nigerian phone number (e.g. 08012345678)';
 
-  const titles = { register: 'Join the Celebration', confirm: 'Verify Your Email', login: 'Welcome Back' };
+  const titles = { register: 'Join the Celebration', login: 'Welcome Back' };
   const subtitles = {
     register: 'Create your guest account to upload and find your photos',
-    confirm:  `We sent a code to ${form.contact}`,
     login:    'Sign in to access your wedding photos',
   };
 
@@ -99,25 +79,7 @@ export default function Register() {
           <p style={styles.subtitle}>{subtitles[step]}</p>
         </div>
 
-        {step !== 'login' && (
-          <div style={styles.steps}>
-            {['register', 'confirm'].map((s, i) => (
-              <React.Fragment key={s}>
-                <div style={{
-                  ...styles.stepDot,
-                  ...(step === s || (step === 'login' && i === 0) ? styles.stepDotActive : {}),
-                  ...(step === 'confirm' && i === 0 ? styles.stepDotDone : {}),
-                }}>
-                  {step === 'confirm' && i === 0 ? '✓' : i + 1}
-                </div>
-                {i === 0 && <div style={{ ...styles.stepLine, ...(step === 'confirm' ? styles.stepLineDone : {}) }} />}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-
-        {error   && <div className="alert alert-error">{error}</div>}
-        {message && <div className="alert alert-success">{message}</div>}
+        {error && <div className="alert alert-error">{error}</div>}
 
         {/* Register */}
         {step === 'register' && (
@@ -151,31 +113,6 @@ export default function Register() {
             <p style={styles.switchLink}>
               Already registered?{' '}
               <span style={styles.switchCta} onClick={() => { setStep('login'); setError(''); }}>Sign in</span>
-            </p>
-          </form>
-        )}
-
-        {/* Confirm (email verification) */}
-        {step === 'confirm' && (
-          <form onSubmit={handleConfirm}>
-            <div className="form-group" style={{ textAlign: 'center' }}>
-              <label style={{ textAlign: 'center' }}>Verification Code</label>
-              <input
-                name="code"
-                placeholder="123456"
-                value={form.code}
-                onChange={handleChange}
-                required
-                maxLength={6}
-                style={{ letterSpacing: '10px', fontSize: '24px', textAlign: 'center', fontWeight: '700' }}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
-              {loading ? 'Verifying...' : 'Verify & Sign In'}
-            </button>
-            <p style={styles.switchLink}>
-              Didn't get the code?{' '}
-              <span style={styles.switchCta} onClick={() => { setStep('register'); setError(''); }}>Go back</span>
             </p>
           </form>
         )}
@@ -228,17 +165,6 @@ const styles = {
   },
   title: { fontSize: '26px', color: '#2D2020', margin: '0 0 6px' },
   subtitle: { fontSize: '14px', color: '#7A6060', margin: 0 },
-  steps: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px' },
-  stepDot: {
-    width: '30px', height: '30px', borderRadius: '50%',
-    background: '#EDE0D8', color: '#7A6060',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '12px', fontWeight: '700',
-  },
-  stepDotActive: { background: '#7A1428', color: 'white' },
-  stepDotDone:   { background: '#5C3D2E', color: 'white' },
-  stepLine:     { width: '60px', height: '2px', background: '#EDE0D8' },
-  stepLineDone: { background: '#5C3D2E' },
   fullBtn: { width: '100%', justifyContent: 'center', marginTop: '4px', padding: '14px' },
   switchLink: { textAlign: 'center', marginTop: '18px', fontSize: '14px', color: '#7A6060' },
   switchCta:  { color: '#7A1428', cursor: 'pointer', fontWeight: '600' },
