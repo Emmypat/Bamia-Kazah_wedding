@@ -53,14 +53,18 @@ export default function Navbar() {
             <>
               <Link to="/upload" style={styles.link}>Upload</Link>
               <Link to="/search" style={styles.link}>Find My Photos</Link>
+              <Link to="/get-ticket" style={styles.link}>Get Ticket</Link>
               <Link to="/gallery" style={styles.link}>
                 {isAdmin ? 'All Photos' : 'My Gallery'}
               </Link>
-              {isAdmin && <span style={styles.adminBadge}>Admin</span>}
+              {isAdmin && (
+                <Link to="/admin/tickets" style={styles.adminBadge}>Admin</Link>
+              )}
               <button onClick={handleLogout} style={styles.logoutBtn}>Sign Out</button>
             </>
           ) : (
             <>
+              <Link to="/get-ticket" style={styles.link}>🎟️ Get Ticket</Link>
               <Link to="/login" style={styles.link}>Sign In</Link>
               <Link to="/register" className="btn btn-primary" style={styles.registerBtn}>Register</Link>
             </>
@@ -82,12 +86,14 @@ export default function Navbar() {
             <>
               <Link to="/upload" style={styles.mobileLink}>Upload</Link>
               <Link to="/search" style={styles.mobileLink}>Find My Photos</Link>
+              <Link to="/get-ticket" style={styles.mobileLink}>🎟️ Get Ticket</Link>
               <Link to="/gallery" style={styles.mobileLink}>{isAdmin ? 'All Photos' : 'My Gallery'}</Link>
-              {isAdmin && <span style={{ ...styles.mobileLink, color: '#7A1428', fontWeight: 600 }}>Admin</span>}
+              {isAdmin && <Link to="/admin/tickets" style={{ ...styles.mobileLink, color: '#7A1428', fontWeight: 600 }}>Admin Tickets</Link>}
               <button onClick={handleLogout} style={styles.mobileLogout}>Sign Out</button>
             </>
           ) : (
             <>
+              <Link to="/get-ticket" style={styles.mobileLink}>🎟️ Get Ticket</Link>
               <Link to="/login" style={styles.mobileLink}>Sign In</Link>
               <Link to="/register" style={styles.mobileLink}>Register</Link>
             </>
@@ -142,6 +148,7 @@ const styles = {
     padding: '4px 12px',
     borderRadius: '20px',
     border: '1px solid #e8c0ca',
+    textDecoration: 'none',
   },
   logoutBtn: {
     background: 'none',

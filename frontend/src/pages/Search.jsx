@@ -96,18 +96,16 @@ export default function Search() {
               </button>
             </div>
           ) : (
-            <div style={styles.selfieOptions}>
-              <label style={styles.optionBtn}>
-                <span style={{ fontSize: '24px', display: 'block', marginBottom: '6px' }}>📷</span>
-                Take Selfie
-                <input type="file" accept="image/*" capture="user" onChange={handleFileSelect} style={{ display: 'none' }} />
-              </label>
-              <label style={styles.optionBtn}>
-                <span style={{ fontSize: '24px', display: 'block', marginBottom: '6px' }}>🖼️</span>
-                Upload Photo
-                <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
-              </label>
-            </div>
+            <label style={styles.selfieDropzone}>
+              <span style={{ fontSize: '40px', display: 'block', marginBottom: '10px' }}>🤳</span>
+              <span style={{ fontWeight: '600', fontSize: '14px', color: '#5C3D2E', display: 'block', marginBottom: '4px' }}>
+                Take or choose a selfie
+              </span>
+              <span style={{ fontSize: '12px', color: '#7A6060' }}>
+                Tap to open camera or select a photo
+              </span>
+              <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
+            </label>
           )}
 
           {error && <div className="alert alert-error">{error}</div>}
@@ -238,13 +236,12 @@ const styles = {
     marginBottom: '12px', display: 'block', margin: '0 auto 12px',
   },
   changeBtn: { background: 'none', border: 'none', color: '#C4956A', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', display: 'block', margin: '8px auto 0' },
-  selfieOptions: { display: 'flex', gap: '12px', marginBottom: '20px' },
-  optionBtn: {
-    flex: 1, display: 'block', padding: '16px 8px',
-    border: '1.5px solid #EDE0D8', borderRadius: '12px',
+  selfieDropzone: {
+    display: 'block', padding: '28px 16px',
+    border: '2px dashed #C4956A', borderRadius: '14px',
     textAlign: 'center', cursor: 'pointer',
-    fontSize: '13px', color: '#5C3D2E', background: '#FDF6EE',
-    fontWeight: '500', transition: 'all 0.2s',
+    background: '#FDF6EE', marginBottom: '20px',
+    transition: 'border-color 0.2s',
   },
   searchBtn: { width: '100%', justifyContent: 'center', padding: '14px', marginBottom: '16px' },
   privacyNote: {

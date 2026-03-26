@@ -107,6 +107,45 @@ export async function registerCoupleFace(imageFile, personName) {
 }
 
 /**
+ * Create an attendance ticket (guest submits name + phone + selfie).
+ */
+export async function createTicket({ selfieFile, guestName, phone }) {
+  const headers = await getAuthHeaders();
+  const base64 = await fileToBase64(selfieFile);
+
+  const response = await axios.post(
+    `${BASE_URL}/tickets`,
+    { selfieImage: base64, contentType: selfieFile.type, guestName, phone },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * Get all ticket requests (admin only).
+ */
+export async function getTickets() {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/tickets`, { headers });
+  return response.data;
+}
+
+/**
+ * Approve or reject a ticket (admin only).
+ * @param {string} ticketId
+ * @param {'approved' | 'rejected'} status
+ */
+export async function updateTicketStatus(ticketId, status) {
+  const headers = await getAuthHeaders();
+  const response = await axios.put(
+    `${BASE_URL}/tickets/${ticketId}`,
+    { status },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
  * Health check — test if the API is reachable.
  */
 export async function healthCheck() {

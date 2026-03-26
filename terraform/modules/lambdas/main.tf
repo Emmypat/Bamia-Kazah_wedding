@@ -84,7 +84,9 @@ resource "aws_iam_role_policy" "lambda_custom" {
           "${var.guests_table_arn}/index/*",
           var.photos_table_arn,
           "${var.photos_table_arn}/index/*",
-          var.couple_faces_table_arn
+          var.couple_faces_table_arn,
+          var.tickets_table_arn,
+          "${var.tickets_table_arn}/index/*"
         ]
       },
       # Rekognition: face indexing and searching
@@ -152,6 +154,12 @@ data "archive_file" "pre_signup" {
   type        = "zip"
   source_dir  = "${path.root}/../lambdas/pre_signup"
   output_path = "${path.module}/../../.build/pre_signup.zip"
+}
+
+data "archive_file" "tickets_handler" {
+  type        = "zip"
+  source_dir  = "${path.root}/../lambdas/tickets_handler"
+  output_path = "${path.module}/../../.build/tickets_handler.zip"
 }
 
 # ── Lambda 1: Upload Handler ──────────────────────────────────
@@ -342,3 +350,30 @@ resource "aws_cloudwatch_log_group" "pre_signup" {
 
 # Note: the Lambda permission allowing Cognito to invoke this function
 # is created in the auth module to avoid a circular dependency.
+
+# ── Lambda 6: Tickets Handler ─────────────────────────────────
+resource "aws_lambda_function" "tickets_handler" {
+  function_name    = "${var.name_prefix}-tickets-handler"
+  filename         = data.archive_file.tickets_handler.output_path
+  source_code_hash = data.archive_file.tickets_handler.output_base64sha256
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "handler.lambda_handler"
+  runtime          = "python3.11"
+  memory_size      = 256
+  timeout          = 30
+  reserved_concurrent_executions = var.max_concurrency
+
+  environment {
+    variables = {
+      TICKETS_TABLE = var.tickets_table_name
+      PHOTOS_BUCKET = var.photos_upload_bucket_name
+    }
+  }
+
+  tags = { Name = "Tickets Handler" }
+}
+
+resource "aws_cloudwatch_log_group" "tickets_handler" {
+  name              = "/aws/lambda/${aws_lambda_function.tickets_handler.function_name}"
+  retention_in_days = 14
+}

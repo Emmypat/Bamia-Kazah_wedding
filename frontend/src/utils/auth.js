@@ -22,8 +22,16 @@ import {
 // and VITE_COGNITO_CLIENT_ID. No configuration needed here.
 
 /**
- * Register a new guest account.
- * Cognito will send a verification email automatically.
+ * Derive a deterministic password from a phone number.
+ * Guests never see or type this — it's generated behind the scenes.
+ */
+function guestPassword(phone) {
+  const digits = phone.replace(/\D/g, '');
+  return `Wed@${digits}#Bk26`;
+}
+
+/**
+ * Register a new guest account (used internally / for admin registration).
  */
 export async function registerGuest({ name, email, password }) {
   const result = await signUp({
@@ -34,6 +42,44 @@ export async function registerGuest({ name, email, password }) {
     },
   });
   return result;
+}
+
+/**
+ * Passwordless guest register-or-login.
+ * Tries to register first; if the account already exists, logs in instead.
+ * The guest only provides name + phone — no password visible to them.
+ */
+export async function registerOrLoginGuest({ name, email, phone }) {
+  const password = guestPassword(phone);
+  try {
+    await signUp({
+      username: email,
+      password,
+      options: { userAttributes: { name, email } },
+    });
+    // pre_signup Lambda auto-confirms — sign in immediately
+    return await signIn({ username: email, password });
+  } catch (err) {
+    if (err.name === 'UsernameExistsException') {
+      return await signIn({ username: email, password });
+    }
+    throw err;
+  }
+}
+
+/**
+ * Login a returning guest by phone number only.
+ * Derives the password the same way registration did.
+ */
+export async function loginWithPhone(phone) {
+  const digits = phone.replace(/\D/g, '');
+  const email = digits.startsWith('0')
+    ? `234${digits.slice(1)}@weddingguest.ng`
+    : digits.startsWith('234')
+    ? `${digits}@weddingguest.ng`
+    : `${digits}@weddingguest.ng`;
+  const password = guestPassword(phone);
+  return signIn({ username: email, password });
 }
 
 /**

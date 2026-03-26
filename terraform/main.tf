@@ -102,6 +102,8 @@ module "lambdas" {
   photos_table_arn        = module.database.photos_table_arn
   couple_faces_table_name = module.database.couple_faces_table_name
   couple_faces_table_arn  = module.database.couple_faces_table_arn
+  tickets_table_name      = module.database.tickets_table_name
+  tickets_table_arn       = module.database.tickets_table_arn
 
   # Rekognition
   rekognition_collection_id  = var.rekognition_collection_id
@@ -135,6 +137,9 @@ module "api" {
 
   couple_detector_invoke_arn   = module.lambdas.couple_detector_invoke_arn
   couple_detector_function_name = module.lambdas.couple_detector_function_name
+
+  tickets_handler_invoke_arn   = module.lambdas.tickets_handler_invoke_arn
+  tickets_handler_function_name = module.lambdas.tickets_handler_function_name
 
   # Cognito authorizer
   cognito_user_pool_endpoint  = module.auth.user_pool_endpoint

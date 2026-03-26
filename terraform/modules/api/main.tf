@@ -29,7 +29,7 @@ resource "aws_apigatewayv2_api" "main" {
   # In production, restrict allow_origins to your CloudFront domain
   cors_configuration {
     allow_origins  = ["*"] # TODO: Replace with ["https://your-cloudfront-url.cloudfront.net"]
-    allow_methods  = ["GET", "POST", "OPTIONS"]
+    allow_methods  = ["GET", "POST", "PUT", "OPTIONS"]
     allow_headers  = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key"]
     expose_headers = ["Content-Type", "X-Amz-Date"]
     max_age        = 3600
@@ -214,4 +214,76 @@ resource "aws_lambda_permission" "api_health" {
   function_name = var.upload_handler_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/health"
+}
+
+# ── Route: POST /tickets ──────────────────────────────────────
+resource "aws_apigatewayv2_integration" "tickets_create" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_create" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /tickets"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_create.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /tickets ───────────────────────────────────────
+resource "aws_apigatewayv2_integration" "tickets_list" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_list" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /tickets"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_list.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /tickets/{ticketId} ───────────────────────────
+resource "aws_apigatewayv2_integration" "ticket_get" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "ticket_get" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /tickets/{ticketId}"
+  target             = "integrations/${aws_apigatewayv2_integration.ticket_get.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: PUT /tickets/{ticketId} ────────────────────────────
+resource "aws_apigatewayv2_integration" "ticket_update" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "ticket_update" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "PUT /tickets/{ticketId}"
+  target             = "integrations/${aws_apigatewayv2_integration.ticket_update.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "api_tickets" {
+  statement_id  = "AllowAPIGWInvokeTickets"
+  action        = "lambda:InvokeFunction"
+  function_name = var.tickets_handler_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/tickets*"
 }

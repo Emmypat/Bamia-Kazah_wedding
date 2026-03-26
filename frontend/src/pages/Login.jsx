@@ -1,36 +1,35 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { login, logout } from '../utils/auth';
+import { loginWithPhone, logout } from '../utils/auth';
 
 function isPhoneInput(value) {
   const clean = value.replace(/\s+/g, '');
   return /^(\+234|234|0)[789]\d{8,9}$/.test(clean) || /^0\d{10}$/.test(clean);
 }
 
-function normalizeContact(value) {
-  if (isPhoneInput(value)) {
-    let digits = value.replace(/\s+/g, '').replace(/^\+/, '');
-    if (digits.startsWith('0')) digits = '234' + digits.slice(1);
-    return `${digits}@weddingguest.ng`;
-  }
-  return value;
-}
-
 export default function Login() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ contact: '', password: '' });
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleLogin(e) {
     e.preventDefault();
+    if (!isPhoneInput(phone)) {
+      setError('Please enter a valid Nigerian phone number (e.g. 08012345678).');
+      return;
+    }
     setLoading(true); setError('');
     try {
       await logout().catch(() => {});
-      await login(normalizeContact(form.contact), form.password);
+      await loginWithPhone(phone);
       navigate('/gallery');
     } catch (err) {
-      setError(err.message || 'Login failed. Check your details and try again.');
+      if (err.name === 'NotAuthorizedException' || err.name === 'UserNotFoundException') {
+        setError("Phone number not found. Please register first.");
+      } else {
+        setError(err.message || 'Sign in failed. Please try again.');
+      }
     } finally { setLoading(false); }
   }
 
@@ -40,36 +39,27 @@ export default function Login() {
         <div style={styles.cardHeader}>
           <div style={styles.logo}>B &amp; K</div>
           <h1 style={styles.title}>Welcome Back</h1>
-          <p style={styles.subtitle}>Sign in to access your wedding photos</p>
+          <p style={styles.subtitle}>Enter your phone number to access your photos</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label>Phone or Email</label>
+            <label>Phone Number</label>
             <input
               type="text"
-              placeholder="08012345678 or sarah@example.com"
-              value={form.contact}
-              onChange={e => setForm({ ...form, contact: e.target.value })}
+              placeholder="08012345678 or +2348012345678"
+              value={phone}
+              onChange={e => { setPhone(e.target.value); setError(''); }}
               required
             />
-            {isPhoneInput(form.contact) && (
-              <span style={{ fontSize: '12px', color: '#166534', marginTop: '4px', display: 'block' }}>
-                ✓ Nigerian phone detected
+            {phone && (
+              <span style={{ fontSize: '12px', marginTop: '4px', display: 'block',
+                color: isPhoneInput(phone) ? '#166534' : '#7A6060' }}>
+                {isPhoneInput(phone) ? '✓ Nigerian phone detected' : 'Enter a valid Nigerian number'}
               </span>
             )}
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={e => setForm({ ...form, password: e.target.value })}
-              required
-            />
           </div>
           <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
@@ -77,8 +67,14 @@ export default function Login() {
         </form>
 
         <p style={styles.switchLink}>
-          Don't have an account?{' '}
+          New guest?{' '}
           <Link to="/register" style={styles.switchCta}>Register here</Link>
+        </p>
+        <p style={styles.adminLink}>
+          Admin?{' '}
+          <Link to="/admin-login" style={{ color: '#C4956A', fontSize: '12px', textDecoration: 'none' }}>
+            Admin login
+          </Link>
         </p>
       </div>
     </div>
@@ -111,4 +107,5 @@ const styles = {
   fullBtn: { width: '100%', justifyContent: 'center', padding: '14px', marginTop: '4px' },
   switchLink: { textAlign: 'center', marginTop: '20px', fontSize: '14px', color: '#7A6060' },
   switchCta: { color: '#7A1428', fontWeight: '600', textDecoration: 'none' },
+  adminLink: { textAlign: 'center', marginTop: '8px', fontSize: '13px', color: '#7A6060' },
 };

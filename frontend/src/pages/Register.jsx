@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { registerGuest, login } from '../utils/auth';
+import { registerOrLoginGuest, logout } from '../utils/auth';
 
-// Convert Nigerian phone to synthetic email for Cognito
-// e.g. "08012345678" or "+2348012345678" → "2348012345678@weddingguest.ng"
 function phoneToEmail(phone) {
   let digits = phone.replace(/\s+/g, '').replace(/^\+/, '');
   if (digits.startsWith('0')) digits = '234' + digits.slice(1);
@@ -15,17 +13,9 @@ function isPhoneInput(value) {
   return /^(\+234|234|0)[789]\d{8,9}$/.test(clean) || /^0\d{10}$/.test(clean);
 }
 
-function normalizeContact(value) {
-  if (isPhoneInput(value)) {
-    return { isPhone: true, email: phoneToEmail(value), display: value };
-  }
-  return { isPhone: false, email: value, display: value };
-}
-
 export default function Register() {
   const navigate = useNavigate();
-  const [step, setStep] = useState('register'); // 'register' | 'login'
-  const [form, setForm] = useState({ name: '', contact: '', password: '' });
+  const [form, setForm] = useState({ name: '', phone: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,109 +24,78 @@ export default function Register() {
     setError('');
   }
 
-  async function handleRegister(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    if (!isPhoneInput(form.phone)) {
+      setError('Please enter a valid Nigerian phone number (e.g. 08012345678).');
+      return;
+    }
     setLoading(true); setError('');
-    const { email } = normalizeContact(form.contact);
+    const email = phoneToEmail(form.phone);
     try {
-      await registerGuest({ name: form.name, email, password: form.password });
-      // Pre-signup Lambda auto-confirms everyone — go straight to gallery
-      await login(email, form.password);
+      await logout().catch(() => {});
+      await registerOrLoginGuest({ name: form.name, email, phone: form.phone });
       navigate('/gallery');
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally { setLoading(false); }
   }
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoading(true); setError('');
-    const { email } = normalizeContact(form.contact);
-    try {
-      await login(email, form.password);
-      navigate('/gallery');
-    } catch (err) {
-      setError(err.message || 'Login failed. Check your details and try again.');
-    } finally { setLoading(false); }
-  }
-
-  const inputHint = isPhoneInput(form.contact)
-    ? 'Phone detected — no email verification needed'
-    : form.contact.includes('@') ? null : 'Enter your email or Nigerian phone number (e.g. 08012345678)';
-
-  const titles = { register: 'Join the Celebration', login: 'Welcome Back' };
-  const subtitles = {
-    register: 'Create your guest account to upload and find your photos',
-    login:    'Sign in to access your wedding photos',
-  };
-
   return (
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.cardHeader}>
           <div style={styles.logo}>B &amp; K</div>
-          <h1 style={styles.title}>{titles[step]}</h1>
-          <p style={styles.subtitle}>{subtitles[step]}</p>
+          <h1 style={styles.title}>Join the Celebration</h1>
+          <p style={styles.subtitle}>Enter your name and phone number to get started</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
-        {/* Register */}
-        {step === 'register' && (
-          <form onSubmit={handleRegister}>
-            <div className="form-group">
-              <label>Your Name</label>
-              <input name="name" placeholder="e.g. Sarah Johnson" value={form.name} onChange={handleChange} required />
-            </div>
-            <div className="form-group">
-              <label>Phone or Email</label>
-              <input
-                name="contact"
-                placeholder="08012345678 or sarah@example.com"
-                value={form.contact}
-                onChange={handleChange}
-                required
-              />
-              {inputHint && (
-                <span style={{ fontSize: '12px', color: isPhoneInput(form.contact) ? '#166534' : '#7A6060', marginTop: '4px', display: 'block' }}>
-                  {isPhoneInput(form.contact) ? '✓ ' : ''}{inputHint}
-                </span>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Password (min 8 characters)</label>
-              <input name="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} required minLength={8} />
-            </div>
-            <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
-              {loading ? 'Creating account...' : 'Create Account'}
-            </button>
-            <p style={styles.switchLink}>
-              Already registered?{' '}
-              <span style={styles.switchCta} onClick={() => { setStep('login'); setError(''); }}>Sign in</span>
-            </p>
-          </form>
-        )}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Your Name</label>
+            <input
+              name="name"
+              placeholder="e.g. Sarah Johnson"
+              value={form.name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Phone Number</label>
+            <input
+              name="phone"
+              placeholder="08012345678 or +2348012345678"
+              value={form.phone}
+              onChange={handleChange}
+              required
+            />
+            {form.phone && (
+              <span style={{ fontSize: '12px', marginTop: '4px', display: 'block',
+                color: isPhoneInput(form.phone) ? '#166534' : '#7A6060' }}>
+                {isPhoneInput(form.phone)
+                  ? '✓ Phone number accepted'
+                  : 'Enter a valid Nigerian number (e.g. 08012345678)'}
+              </span>
+            )}
+          </div>
+          <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
+            {loading ? 'Getting you in...' : 'Get Started'}
+          </button>
+        </form>
 
-        {/* Login */}
-        {step === 'login' && (
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label>Phone or Email</label>
-              <input name="contact" placeholder="08012345678 or sarah@example.com" value={form.contact} onChange={handleChange} required />
-            </div>
-            <div className="form-group">
-              <label>Password</label>
-              <input name="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} required />
-            </div>
-            <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-            <p style={styles.switchLink}>
-              No account yet?{' '}
-              <span style={styles.switchCta} onClick={() => { setStep('register'); setError(''); }}>Register here</span>
-            </p>
-          </form>
-        )}
+        <p style={styles.switchLink}>
+          Already joined?{' '}
+          <Link to="/login" style={styles.switchCta}>Sign in here</Link>
+        </p>
+        <p style={styles.adminLink}>
+          Admin?{' '}
+          <Link to="/admin-login" style={{ color: '#C4956A', fontSize: '12px', textDecoration: 'none' }}>
+            Admin login
+          </Link>
+        </p>
       </div>
     </div>
   );
@@ -167,5 +126,6 @@ const styles = {
   subtitle: { fontSize: '14px', color: '#7A6060', margin: 0 },
   fullBtn: { width: '100%', justifyContent: 'center', marginTop: '4px', padding: '14px' },
   switchLink: { textAlign: 'center', marginTop: '18px', fontSize: '14px', color: '#7A6060' },
-  switchCta:  { color: '#7A1428', cursor: 'pointer', fontWeight: '600' },
+  switchCta: { color: '#7A1428', fontWeight: '600', textDecoration: 'none' },
+  adminLink: { textAlign: 'center', marginTop: '8px', fontSize: '13px', color: '#7A6060' },
 };

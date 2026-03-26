@@ -22,3 +22,9 @@ output "couple_faces_table_name" {
 output "couple_faces_table_arn" {
   value = aws_dynamodb_table.couple_faces.arn
 }
+output "tickets_table_name" {
+  value = aws_dynamodb_table.tickets.name
+}
+output "tickets_table_arn" {
+  value = aws_dynamodb_table.tickets.arn
+}

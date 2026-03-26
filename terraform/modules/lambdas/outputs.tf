@@ -22,3 +22,9 @@ output "email_notifier_invoke_arn" {
 output "pre_signup_lambda_arn" {
   value = aws_lambda_function.pre_signup.arn
 }
+output "tickets_handler_invoke_arn" {
+  value = aws_lambda_function.tickets_handler.invoke_arn
+}
+output "tickets_handler_function_name" {
+  value = aws_lambda_function.tickets_handler.function_name
+}
