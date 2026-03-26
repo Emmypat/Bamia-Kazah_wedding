@@ -1,29 +1,50 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login, logout, requestPasswordReset, confirmPasswordReset } from '../utils/auth';
+import { login, logout, requestPasswordReset, confirmPasswordReset, confirmSignIn } from '../utils/auth';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [view, setView] = useState('login'); // 'login' | 'forgot' | 'reset'
-  const [form, setForm] = useState({ email: '', password: '', code: '', newPassword: '' });
+  // views: 'login' | 'newpassword' | 'forgot' | 'reset'
+  const [view, setView] = useState('login');
+  const [form, setForm] = useState({ email: '', password: '', code: '', newPassword: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  function reset(nextView) {
-    setError(''); setSuccess('');
-    setView(nextView);
-  }
+  function resetView(nextView) { setError(''); setSuccess(''); setView(nextView); }
 
   async function handleLogin(e) {
     e.preventDefault();
     setLoading(true); setError('');
     try {
       await logout().catch(() => {});
-      await login(form.email, form.password);
-      navigate('/gallery');
+      const result = await login(form.email, form.password);
+      if (result?.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        setView('newpassword');
+      } else {
+        navigate('/gallery');
+      }
     } catch (err) {
       setError(err.message || 'Login failed. Check your credentials.');
+    } finally { setLoading(false); }
+  }
+
+  async function handleNewPassword(e) {
+    e.preventDefault();
+    if (form.newPassword !== form.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (form.newPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    setLoading(true); setError('');
+    try {
+      await confirmSignIn({ challengeResponse: form.newPassword });
+      navigate('/gallery');
+    } catch (err) {
+      setError(err.message || 'Failed to set new password. Please try again.');
     } finally { setLoading(false); }
   }
 
@@ -41,10 +62,7 @@ export default function AdminLogin() {
 
   async function handleReset(e) {
     e.preventDefault();
-    if (form.newPassword.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
+    if (form.newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true); setError('');
     try {
       await confirmPasswordReset(form.email, form.code, form.newPassword);
@@ -55,27 +73,28 @@ export default function AdminLogin() {
     } finally { setLoading(false); }
   }
 
+  const icons = { login: '🛡️', newpassword: '🔐', forgot: '📧', reset: '🔑' };
+  const titles = { login: 'Admin Login', newpassword: 'Set New Password', forgot: 'Reset Password', reset: 'Enter New Password' };
+  const subtitles = {
+    login: 'Wedding administrators only',
+    newpassword: 'Your temporary password has expired — please set a new one',
+    forgot: 'Password reset code will be sent to the registered admin email',
+    reset: 'Enter the code sent to the registered admin email',
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.cardHeader}>
-          <div style={styles.shield}>
-            {view === 'login' ? '🛡️' : view === 'forgot' ? '📧' : '🔑'}
-          </div>
-          <h1 style={styles.title}>
-            {view === 'login' ? 'Admin Login' : view === 'forgot' ? 'Reset Password' : 'Enter New Password'}
-          </h1>
-          <p style={styles.subtitle}>
-            {view === 'login' ? 'Wedding administrators only'
-              : view === 'forgot' ? 'Enter your admin email to receive a reset code'
-              : 'Enter the code sent to your email'}
-          </p>
+          <div style={styles.shield}>{icons[view]}</div>
+          <h1 style={styles.title}>{titles[view]}</h1>
+          <p style={styles.subtitle}>{subtitles[view]}</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-        {success && <div className="alert alert-success" style={{ background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '14px' }}>{success}</div>}
+        {success && <div style={styles.successAlert}>{success}</div>}
 
-        {/* ── Login view ── */}
+        {/* ── Login ── */}
         {view === 'login' && (
           <form onSubmit={handleLogin}>
             <div className="form-group">
@@ -91,13 +110,32 @@ export default function AdminLogin() {
             <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In as Admin'}
             </button>
-            <button type="button" onClick={() => reset('forgot')} style={styles.linkBtn}>
+            <button type="button" onClick={() => resetView('forgot')} style={styles.linkBtn}>
               Forgot password?
             </button>
           </form>
         )}
 
-        {/* ── Forgot view ── */}
+        {/* ── Set new password (temp password expired) ── */}
+        {view === 'newpassword' && (
+          <form onSubmit={handleNewPassword}>
+            <div className="form-group">
+              <label>New Password</label>
+              <input type="password" placeholder="Min 8 characters" value={form.newPassword}
+                onChange={e => setForm({ ...form, newPassword: e.target.value })} required />
+            </div>
+            <div className="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" placeholder="Repeat new password" value={form.confirmPassword}
+                onChange={e => setForm({ ...form, confirmPassword: e.target.value })} required />
+            </div>
+            <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
+              {loading ? 'Saving...' : 'Set Password & Sign In'}
+            </button>
+          </form>
+        )}
+
+        {/* ── Forgot ── */}
         {view === 'forgot' && (
           <form onSubmit={handleForgot}>
             <div className="form-group">
@@ -108,13 +146,13 @@ export default function AdminLogin() {
             <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
               {loading ? 'Sending...' : 'Send Reset Code'}
             </button>
-            <button type="button" onClick={() => reset('login')} style={styles.linkBtn}>
+            <button type="button" onClick={() => resetView('login')} style={styles.linkBtn}>
               ← Back to login
             </button>
           </form>
         )}
 
-        {/* ── Reset view ── */}
+        {/* ── Reset ── */}
         {view === 'reset' && (
           <form onSubmit={handleReset}>
             <div className="form-group">
@@ -135,14 +173,14 @@ export default function AdminLogin() {
             <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>
               {loading ? 'Resetting...' : 'Set New Password'}
             </button>
-            <button type="button" onClick={() => reset('forgot')} style={styles.linkBtn}>
+            <button type="button" onClick={() => resetView('forgot')} style={styles.linkBtn}>
               ← Resend code
             </button>
           </form>
         )}
 
         <p style={styles.note}>
-          This page is for wedding administrators only. Guests should{' '}
+          Guests should{' '}
           <a href="/register" style={{ color: '#7A1428', textDecoration: 'none', fontWeight: '600' }}>
             register here
           </a>.
@@ -168,13 +206,16 @@ const styles = {
   cardHeader: { textAlign: 'center', marginBottom: '28px' },
   shield: { fontSize: '40px', display: 'block', marginBottom: '12px' },
   title: { fontSize: '26px', color: '#2D2020', margin: '0 0 6px' },
-  subtitle: { fontSize: '14px', color: '#7A6060', margin: 0 },
+  subtitle: { fontSize: '14px', color: '#7A6060', margin: 0, lineHeight: '1.5' },
   fullBtn: { width: '100%', justifyContent: 'center', padding: '14px', marginTop: '4px' },
   linkBtn: {
     width: '100%', marginTop: '10px', background: 'none',
     border: 'none', color: '#7A1428', fontSize: '13px',
-    cursor: 'pointer', padding: '8px', textAlign: 'center',
-    fontWeight: '500',
+    cursor: 'pointer', padding: '8px', textAlign: 'center', fontWeight: '500',
   },
   note: { textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#7A6060', lineHeight: '1.6' },
+  successAlert: {
+    background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7',
+    borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '14px',
+  },
 };

@@ -29,7 +29,7 @@ resource "aws_apigatewayv2_api" "main" {
   # In production, restrict allow_origins to your CloudFront domain
   cors_configuration {
     allow_origins  = ["*"] # TODO: Replace with ["https://your-cloudfront-url.cloudfront.net"]
-    allow_methods  = ["GET", "POST", "PUT", "OPTIONS"]
+    allow_methods  = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     allow_headers  = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key"]
     expose_headers = ["Content-Type", "X-Amz-Date"]
     max_age        = 3600
@@ -326,4 +326,43 @@ resource "aws_apigatewayv2_route" "ticket_view_public" {
   route_key = "GET /tickets/{ticketId}/view"
   target    = "integrations/${aws_apigatewayv2_integration.ticket_view_public.id}"
   # No authorization_type → public route
+}
+
+# ── Route: DELETE /tickets/{ticketId} (admin only, JWT) ───────
+resource "aws_apigatewayv2_integration" "ticket_delete" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "ticket_delete" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "DELETE /tickets/{ticketId}"
+  target             = "integrations/${aws_apigatewayv2_integration.ticket_delete.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /my-ticket (public, phone lookup) ──────────────
+resource "aws_apigatewayv2_integration" "my_ticket" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "my_ticket" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /my-ticket"
+  target    = "integrations/${aws_apigatewayv2_integration.my_ticket.id}"
+  # No authorization_type → public route
+}
+
+resource "aws_lambda_permission" "api_my_ticket" {
+  statement_id  = "AllowAPIGWInvokeMyTicket"
+  action        = "lambda:InvokeFunction"
+  function_name = var.tickets_handler_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/my-ticket"
 }

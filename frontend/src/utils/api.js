@@ -146,11 +146,53 @@ export async function updateTicketStatus(ticketId, status) {
 }
 
 /**
+ * Get a single ticket by ID (admin only — returns selfieUrl + checkedIn fields).
+ */
+export async function getTicketById(ticketId) {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/tickets/${ticketId}`, { headers });
+  return response.data;
+}
+
+/**
+ * Mark a ticket as checked-in at the venue (admin only).
+ * Returns { checkedIn, checkedInAt } or { alreadyCheckedIn, checkedInAt }.
+ */
+export async function checkinTicket(ticketId) {
+  const headers = await getAuthHeaders();
+  const response = await axios.put(
+    `${BASE_URL}/tickets/${ticketId}`,
+    { checkin: true },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
  * Get a ticket by ID without authentication (public page).
  * Returns safe public fields only: ticketId, guestName, status, dates.
  */
 export async function getPublicTicket(ticketId) {
   const response = await axios.get(`${BASE_URL}/tickets/${ticketId}/view`);
+  return response.data;
+}
+
+/**
+ * Look up a ticket by phone number (public, no auth).
+ * @param {string} phone — Nigerian phone number in any format
+ */
+export async function getMyTicketByPhone(phone) {
+  const response = await axios.get(`${BASE_URL}/my-ticket`, { params: { phone } });
+  return response.data;
+}
+
+/**
+ * Delete a rejected ticket (admin only).
+ * @param {string} ticketId
+ */
+export async function deleteTicket(ticketId) {
+  const headers = await getAuthHeaders();
+  const response = await axios.delete(`${BASE_URL}/tickets/${ticketId}`, { headers });
   return response.data;
 }
 

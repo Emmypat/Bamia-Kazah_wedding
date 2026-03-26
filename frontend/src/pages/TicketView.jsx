@@ -98,10 +98,34 @@ export default function TicketView() {
           </div>
         )}
 
+        {/* Guest selfie */}
+        {ticket.selfieUrl && (
+          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <img
+              src={ticket.selfieUrl}
+              alt={ticket.guestName}
+              crossOrigin="anonymous"
+              style={styles.selfiePhoto}
+            />
+          </div>
+        )}
+
         {/* Ticket card */}
         <div ref={ticketRef} style={styles.ticketCard}>
           {/* Watermark */}
           <div style={styles.watermark}>{ticket.guestName}</div>
+
+          {/* Selfie inside downloadable card */}
+          {ticket.selfieUrl && (
+            <div style={{ textAlign: 'center', paddingTop: '20px', position: 'relative', zIndex: 1 }}>
+              <img
+                src={ticket.selfieUrl}
+                alt={ticket.guestName}
+                crossOrigin="anonymous"
+                style={styles.selfieOnCard}
+              />
+            </div>
+          )}
 
           {/* Header */}
           <div style={styles.ticketHeader}>
@@ -187,6 +211,16 @@ const styles = {
 
   ticketSection: { maxWidth: '420px', margin: '0 auto' },
 
+  selfiePhoto: {
+    width: '200px', height: '200px', borderRadius: '50%',
+    objectFit: 'cover', border: '4px solid #7A1428', display: 'block', margin: '0 auto',
+    boxShadow: '0 4px 20px rgba(122,20,40,0.25)',
+  },
+  selfieOnCard: {
+    width: '120px', height: '120px', borderRadius: '50%',
+    objectFit: 'cover', border: '3px solid rgba(196,149,106,0.8)',
+    display: 'block', margin: '0 auto',
+  },
   verifiedBanner: {
     display: 'flex', alignItems: 'center', gap: '10px',
     background: 'linear-gradient(135deg, #065F46, #047857)',
@@ -209,7 +243,7 @@ const styles = {
     opacity: 0.08, pointerEvents: 'none', whiteSpace: 'nowrap',
     zIndex: 0, letterSpacing: '2px',
   },
-  ticketHeader: { padding: '28px 28px 20px', textAlign: 'center', position: 'relative', zIndex: 1 },
+  ticketHeader: { padding: '16px 28px 20px', textAlign: 'center', position: 'relative', zIndex: 1 },
   ticketPre: {
     fontSize: '9px', letterSpacing: '3px', textTransform: 'uppercase',
     color: 'rgba(196,149,106,0.9)', margin: '0 0 8px',

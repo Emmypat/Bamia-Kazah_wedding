@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTickets, updateTicketStatus } from '../utils/api';
+import { getTickets, updateTicketStatus, deleteTicket } from '../utils/api';
 
 export default function AdminTickets() {
   const [tickets, setTickets] = useState([]);
@@ -29,6 +29,10 @@ export default function AdminTickets() {
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to update ticket. Please try again.');
     } finally { setUpdating(''); }
+  }
+
+  function handleDelete(ticketId) {
+    setTickets(prev => prev.filter(t => t.ticketId !== ticketId));
   }
 
   const pending  = tickets.filter(t => t.status === 'pending');
@@ -73,7 +77,7 @@ export default function AdminTickets() {
               <h2 style={styles.sectionTitle}>Pending Verification ({pending.length})</h2>
               <div style={styles.grid}>
                 {pending.map(ticket => (
-                  <TicketCard key={ticket.ticketId} ticket={ticket} onUpdate={handleUpdate} updating={updating} />
+                  <TicketCard key={ticket.ticketId} ticket={ticket} onUpdate={handleUpdate} onDelete={handleDelete} updating={updating} />
                 ))}
               </div>
             </section>
@@ -84,7 +88,7 @@ export default function AdminTickets() {
               <h2 style={{ ...styles.sectionTitle, color: '#065F46' }}>Approved ({approved.length})</h2>
               <div style={styles.grid}>
                 {approved.map(ticket => (
-                  <TicketCard key={ticket.ticketId} ticket={ticket} onUpdate={handleUpdate} updating={updating} />
+                  <TicketCard key={ticket.ticketId} ticket={ticket} onUpdate={handleUpdate} onDelete={handleDelete} updating={updating} />
                 ))}
               </div>
             </section>
@@ -95,7 +99,7 @@ export default function AdminTickets() {
               <h2 style={{ ...styles.sectionTitle, color: '#991B1B' }}>Rejected ({rejected.length})</h2>
               <div style={styles.grid}>
                 {rejected.map(ticket => (
-                  <TicketCard key={ticket.ticketId} ticket={ticket} onUpdate={handleUpdate} updating={updating} />
+                  <TicketCard key={ticket.ticketId} ticket={ticket} onUpdate={handleUpdate} onDelete={handleDelete} updating={updating} />
                 ))}
               </div>
             </section>
@@ -106,8 +110,22 @@ export default function AdminTickets() {
   );
 }
 
-function TicketCard({ ticket, onUpdate, updating }) {
+function TicketCard({ ticket, onUpdate, onDelete, updating }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const isBusy = updating === ticket.ticketId;
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deleteTicket(ticket.ticketId);
+      onDelete(ticket.ticketId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete ticket.');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
   const statusColor = {
     pending:  { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
     approved: { bg: '#D1FAE5', text: '#065F46', border: '#6EE7B7' },
@@ -176,6 +194,31 @@ function TicketCard({ ticket, onUpdate, updating }) {
           </a>
         </div>
       )}
+
+      {/* Delete — only for rejected tickets */}
+      {ticket.status === 'rejected' && (
+        <div style={{ padding: '0 16px 14px' }}>
+          {!confirmDelete ? (
+            <button onClick={() => setConfirmDelete(true)} style={cardStyles.deleteBtn}>
+              🗑 Delete Ticket
+            </button>
+          ) : (
+            <div style={cardStyles.confirmRow}>
+              <p style={{ margin: '0 0 8px', fontSize: '12px', color: '#991B1B', fontWeight: '600' }}>
+                Permanently delete this ticket?
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={handleDelete} disabled={deleting} style={cardStyles.confirmDeleteBtn}>
+                  {deleting ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+                <button onClick={() => setConfirmDelete(false)} style={cardStyles.cancelDeleteBtn}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -201,7 +244,7 @@ const cardStyles = {
     boxShadow: '0 2px 16px rgba(122,20,40,0.06)',
     overflow: 'hidden',
   },
-  selfie: { width: '100%', height: '200px', objectFit: 'cover', objectPosition: 'top', display: 'block' },
+  selfie: { width: '100%', height: '280px', objectFit: 'cover', objectPosition: 'top', display: 'block' },
   selfieEmpty: {
     width: '100%', height: '200px',
     background: '#F7EDE0', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -234,5 +277,21 @@ const cardStyles = {
   viewLink: {
     fontSize: '12px', color: '#7A1428', textDecoration: 'none', fontWeight: '600',
     whiteSpace: 'nowrap',
+  },
+  deleteBtn: {
+    width: '100%', padding: '8px', borderRadius: '8px',
+    background: 'none', border: '1px solid #FECACA', color: '#991B1B',
+    cursor: 'pointer', fontSize: '12px', fontWeight: '600',
+  },
+  confirmRow: { background: '#FFF5F5', borderRadius: '8px', padding: '10px 12px' },
+  confirmDeleteBtn: {
+    flex: 1, padding: '8px 12px', borderRadius: '8px',
+    background: '#991B1B', color: 'white', border: 'none',
+    cursor: 'pointer', fontSize: '12px', fontWeight: '600',
+  },
+  cancelDeleteBtn: {
+    flex: 1, padding: '8px 12px', borderRadius: '8px',
+    background: 'none', border: '1px solid #EDE0D8', color: '#5C3D2E',
+    cursor: 'pointer', fontSize: '12px', fontWeight: '600',
   },
 };

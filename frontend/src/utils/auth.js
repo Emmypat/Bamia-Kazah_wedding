@@ -4,11 +4,14 @@ import {
   signOut,
   signUp,
   confirmSignUp,
+  confirmSignIn,
   resetPassword,
   confirmResetPassword,
   getCurrentUser as amplifyGetCurrentUser,
   fetchAuthSession,
 } from 'aws-amplify/auth';
+
+export { confirmSignIn };
 
 // Same base URL pattern as api.js — avoids circular import
 const _apiBase = import.meta.env.VITE_API_URL || '/api';

@@ -6,12 +6,15 @@ Routes:
   GET    /tickets           — Admin lists all tickets (admin only)
   PUT    /tickets/{id}      — Admin approves/rejects a ticket (admin only)
   GET    /tickets/{id}      — Guest views their ticket (auth required)
+  DELETE /tickets/{id}      — Admin deletes a rejected ticket (admin only)
+  GET    /my-ticket         — Public phone lookup of own ticket (no auth)
 """
 
 import json
 import boto3
 import base64
 import os
+import re
 import random
 import string
 from datetime import datetime
@@ -30,7 +33,7 @@ def cors_headers():
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     }
 
 
@@ -57,6 +60,14 @@ def get_user_claims(event):
         groups = [g.strip() for g in str(groups_raw).strip('[]').split(',') if g.strip()]
     is_admin = 'admins' in groups
     return user_id, is_admin
+
+
+def normalize_phone(phone):
+    """Canonicalize Nigerian phone number to digits only (e.g. 2348012345678)."""
+    digits = re.sub(r'\D', '', phone or '')
+    if digits.startswith('0') and len(digits) == 11:
+        digits = '234' + digits[1:]
+    return digits
 
 
 def generate_ticket_id(table):
@@ -162,7 +173,7 @@ def list_tickets(event):
 
 
 def update_ticket(event, ticket_id):
-    """PUT /tickets/{id} — admin approves or rejects a ticket."""
+    """PUT /tickets/{id} — admin approves/rejects a ticket, or checks in a guest."""
     _, is_admin = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
@@ -172,25 +183,40 @@ def update_ticket(event, ticket_id):
     except json.JSONDecodeError:
         return respond(400, {'error': 'Invalid JSON body'})
 
-    status = (body.get('status') or '').strip()
-    if status not in ('approved', 'rejected'):
-        return respond(400, {'error': "status must be 'approved' or 'rejected'"})
-
     table = dynamodb.Table(TICKETS_TABLE)
-
-    # Check ticket exists
     existing = table.get_item(Key={'ticketId': ticket_id})
     if 'Item' not in existing:
         return respond(404, {'error': 'Ticket not found'})
 
     now = datetime.utcnow().isoformat() + 'Z'
+
+    # ── Check-in branch ────────────────────────────────────────
+    if body.get('checkin') is True:
+        ticket = existing['Item']
+        if ticket.get('checkedIn'):
+            return respond(200, {
+                'ticketId': ticket_id,
+                'alreadyCheckedIn': True,
+                'checkedInAt': ticket.get('checkedInAt', ''),
+            })
+        table.update_item(
+            Key={'ticketId': ticket_id},
+            UpdateExpression='SET checkedIn = :t, checkedInAt = :now',
+            ExpressionAttributeValues={':t': True, ':now': now},
+        )
+        return respond(200, {'ticketId': ticket_id, 'checkedIn': True, 'checkedInAt': now})
+
+    # ── Approve / Reject branch ────────────────────────────────
+    status = (body.get('status') or '').strip()
+    if status not in ('approved', 'rejected'):
+        return respond(400, {'error': "status must be 'approved' or 'rejected'"})
+
     table.update_item(
         Key={'ticketId': ticket_id},
         UpdateExpression='SET #s = :s, verifiedAt = :v',
         ExpressionAttributeNames={'#s': 'status'},
         ExpressionAttributeValues={':s': status, ':v': now},
     )
-
     return respond(200, {'ticketId': ticket_id, 'status': status, 'verifiedAt': now})
 
 
@@ -209,9 +235,18 @@ def get_ticket(event, ticket_id):
     if not is_admin and ticket.get('userId') != user_id:
         return respond(403, {'error': 'You can only view your own ticket'})
 
-    # Strip internal fields for public response
-    ticket.pop('selfieKey', None)
+    # Generate presigned selfie URL
+    selfie_key = ticket.pop('selfieKey', None)
     ticket.pop('userId', None)
+    if selfie_key:
+        try:
+            ticket['selfieUrl'] = s3.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': PHOTOS_BUCKET, 'Key': selfie_key},
+                ExpiresIn=3600,
+            )
+        except Exception:
+            ticket['selfieUrl'] = None
 
     return respond(200, ticket)
 
@@ -224,14 +259,105 @@ def get_ticket_public(ticket_id):
     if not ticket:
         return respond(404, {'error': 'Ticket not found'})
 
-    # Return only safe public fields — no selfieKey or userId
+    # Generate presigned selfie URL (safe to expose — expires in 1 hour)
+    selfie_url = None
+    if ticket.get('selfieKey'):
+        try:
+            selfie_url = s3.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': PHOTOS_BUCKET, 'Key': ticket['selfieKey']},
+                ExpiresIn=3600,
+            )
+        except Exception:
+            pass
+
     return respond(200, {
         'ticketId': ticket['ticketId'],
         'guestName': ticket.get('guestName', ''),
         'status': ticket.get('status', ''),
         'createdAt': ticket.get('createdAt', ''),
         'verifiedAt': ticket.get('verifiedAt', ''),
+        'checkedIn': ticket.get('checkedIn', False),
+        'checkedInAt': ticket.get('checkedInAt', ''),
+        'selfieUrl': selfie_url,
     })
+
+
+def get_ticket_by_phone(event):
+    """GET /my-ticket?phone= — public lookup of a ticket by phone number."""
+    params = event.get('queryStringParameters') or {}
+    phone_raw = (params.get('phone') or '').strip()
+    if not phone_raw:
+        return respond(400, {'error': 'phone query parameter is required'})
+
+    normalized = normalize_phone(phone_raw)
+
+    table = dynamodb.Table(TICKETS_TABLE)
+    # Scan for matching phone — try both normalized and original format
+    from boto3.dynamodb.conditions import Attr
+    resp = table.scan(FilterExpression=Attr('phone').eq(normalized))
+    items = resp.get('Items', [])
+    if not items:
+        # Try original format as stored
+        resp2 = table.scan(FilterExpression=Attr('phone').eq(phone_raw))
+        items = resp2.get('Items', [])
+    if not items:
+        return respond(404, {'error': 'No ticket found for this phone number'})
+
+    # Return most recent ticket
+    items.sort(key=lambda t: t.get('createdAt', ''), reverse=True)
+    ticket = items[0]
+
+    selfie_url = None
+    if ticket.get('selfieKey'):
+        try:
+            selfie_url = s3.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': PHOTOS_BUCKET, 'Key': ticket['selfieKey']},
+                ExpiresIn=3600,
+            )
+        except Exception:
+            pass
+
+    return respond(200, {
+        'ticketId': ticket['ticketId'],
+        'guestName': ticket.get('guestName', ''),
+        'phone': ticket.get('phone', ''),
+        'status': ticket.get('status', ''),
+        'createdAt': ticket.get('createdAt', ''),
+        'verifiedAt': ticket.get('verifiedAt', ''),
+        'checkedIn': ticket.get('checkedIn', False),
+        'checkedInAt': ticket.get('checkedInAt', ''),
+        'selfieUrl': selfie_url,
+    })
+
+
+def delete_ticket(event, ticket_id):
+    """DELETE /tickets/{id} — admin only, rejected tickets only."""
+    _, is_admin = get_user_claims(event)
+    if not is_admin:
+        return respond(403, {'error': 'Admin access required'})
+
+    table = dynamodb.Table(TICKETS_TABLE)
+    existing = table.get_item(Key={'ticketId': ticket_id})
+    if 'Item' not in existing:
+        return respond(404, {'error': 'Ticket not found'})
+
+    ticket = existing['Item']
+    if ticket.get('status') != 'rejected':
+        return respond(400, {'error': 'Only rejected tickets can be deleted'})
+
+    # Delete selfie from S3
+    selfie_key = ticket.get('selfieKey')
+    if selfie_key:
+        try:
+            s3.delete_object(Bucket=PHOTOS_BUCKET, Key=selfie_key)
+        except Exception:
+            pass
+
+    # Delete from DynamoDB
+    table.delete_item(Key={'ticketId': ticket_id})
+    return respond(200, {'ticketId': ticket_id, 'deleted': True})
 
 
 # ── Lambda entry point ──────────────────────────────────────────
@@ -243,6 +369,12 @@ def lambda_handler(event, context):
     # OPTIONS preflight
     if method == 'OPTIONS':
         return {'statusCode': 200, 'headers': cors_headers(), 'body': ''}
+
+    # Route: /my-ticket (public phone lookup)
+    if raw_path == '/my-ticket':
+        if method == 'GET':
+            return get_ticket_by_phone(event)
+        return respond(405, {'error': 'Method not allowed'})
 
     # Route: /tickets
     if raw_path == '/tickets':
@@ -270,6 +402,8 @@ def lambda_handler(event, context):
             return update_ticket(event, ticket_id)
         if method == 'GET':
             return get_ticket(event, ticket_id)
+        if method == 'DELETE':
+            return delete_ticket(event, ticket_id)
         return respond(405, {'error': 'Method not allowed'})
 
     return respond(404, {'error': 'Not found'})

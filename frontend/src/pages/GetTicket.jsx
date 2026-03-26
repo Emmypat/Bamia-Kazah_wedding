@@ -221,85 +221,107 @@ export default function GetTicket() {
       )}
 
       {/* ── Step 3: Ticket ────────────────────── */}
-      {step === 'ticket' && ticket && (
-        <div style={styles.ticketSection}>
-          {/* The printable / downloadable ticket */}
-          <div ref={ticketRef} style={styles.ticketCard}>
-            {/* Watermark */}
-            <div style={styles.ticketWatermark}>{ticket.guestName}</div>
-
-            {/* Header */}
-            <div style={{ ...styles.ticketHeader, position: 'relative', zIndex: 1 }}>
-              <p style={styles.ticketPre}>ATTENDANCE TICKET</p>
-              <h2 style={styles.ticketCouple}>Bamai &amp; Kazah</h2>
-              <p style={styles.ticketDate}>11 April 2026 · Kaduna</p>
+      {step === 'ticket' && ticket && (() => {
+        const ticketLink = `${window.location.origin}/ticket/${ticket.ticketId}`;
+        function shareTicketLink() {
+          const text = `I'm attending Bamai & Kazah's Wedding on 11 April 2026!\nCheck my attendance ticket: ${ticketLink}`;
+          window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+        function copyTicketLink() {
+          navigator.clipboard.writeText(ticketLink).catch(() => {});
+        }
+        return (
+          <div style={styles.ticketSection}>
+            {/* ── Confirmation banner ── */}
+            <div style={styles.confirmBanner}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎉</div>
+              <h2 style={styles.confirmTitle}>Ticket Request Submitted!</h2>
+              <p style={styles.confirmSub}>Your request is pending admin approval. Bookmark the link below to check your status.</p>
             </div>
 
-            {/* Divider */}
-            <div style={styles.ticketDivider} />
-
-            {/* Guest info + QR */}
-            <div style={{ ...styles.ticketBody, position: 'relative', zIndex: 1 }}>
-              <div style={styles.ticketInfo}>
-                <p style={styles.ticketLabel}>GUEST NAME</p>
-                <p style={styles.ticketName}>{ticket.guestName}</p>
-                <p style={{ ...styles.ticketLabel, marginTop: '16px' }}>ATTENDANCE ID</p>
-                <p style={styles.ticketId}>{ticket.ticketId}</p>
-                <div style={styles.ticketStatus}>
-                  <span style={{
-                    ...styles.statusBadge,
-                    ...(ticket.status === 'approved' ? styles.statusApproved : styles.statusPending),
-                  }}>
-                    {ticket.status === 'approved' ? '✓ Verified' : '⏳ Pending Verification'}
-                  </span>
-                </div>
+            {/* ── Selfie photo ── */}
+            {selfiePreview && (
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <img src={selfiePreview} alt="Your selfie" style={styles.ticketSelfie} />
               </div>
-              {qrDataUrl && (
-                <div style={styles.ticketQR}>
-                  <img src={qrDataUrl} alt="QR Code" style={{ width: '110px', height: '110px' }} />
-                  <p style={styles.ticketQRLabel}>Scan to verify</p>
-                </div>
-              )}
-            </div>
+            )}
 
-            {/* Footer */}
-            <div style={{ ...styles.ticketFooter, position: 'relative', zIndex: 1 }}>
-              <p style={styles.ticketVenue}>Our Lady of Fatima Chaplaincy, Sabon Tasha · Epitome Event Center, Barnawa</p>
-            </div>
-          </div>
-
-          {/* Pending notice */}
-          {ticket.status !== 'approved' && (
-            <div style={styles.pendingNotice}>
-              <span style={{ fontSize: '20px' }}>⏳</span>
-              <p style={{ margin: 0, fontSize: '14px', color: '#92400e', lineHeight: '1.6' }}>
-                <strong>Your ticket is pending admin verification.</strong><br />
-                You can download and share it now. A verified badge will appear once approved.
+            {/* ── Ticket link card ── */}
+            <div style={styles.linkCard}>
+              <p style={styles.linkLabel}>YOUR TICKET LINK</p>
+              <div style={styles.linkRow}>
+                <a href={ticketLink} target="_blank" rel="noreferrer" style={styles.ticketLinkText}>
+                  {ticketLink}
+                </a>
+                <button onClick={copyTicketLink} style={styles.copyBtn} title="Copy link">📋</button>
+              </div>
+              <span style={{ ...styles.statusBadge, ...styles.statusPending, display: 'inline-block', marginTop: '10px' }}>
+                ⏳ Pending Admin Approval
+              </span>
+              <button onClick={shareTicketLink} style={styles.whatsappShareBtn}>
+                💬 Share my ticket link on WhatsApp
+              </button>
+              <p style={styles.bookmarkNote}>
+                📌 Bookmark this link to check when your ticket is approved.
               </p>
             </div>
-          )}
 
-          {/* Action buttons */}
-          <div style={styles.ticketActions}>
-            <button onClick={downloadAsPDF} className="btn btn-primary" style={styles.actionBtn}>
-              📄 Download PDF
-            </button>
-            <button onClick={downloadAsImage} className="btn btn-secondary" style={styles.actionBtn}>
-              🖼️ Download Image
-            </button>
-            <button onClick={shareToWhatsApp} style={{ ...styles.actionBtn, ...styles.whatsappBtn }}>
-              💬 Share on WhatsApp
-            </button>
-            <button onClick={handlePrint} style={styles.actionBtn2}>
-              🖨️ Print
-            </button>
+            {/* ── The downloadable ticket card ── */}
+            <div ref={ticketRef} style={styles.ticketCard}>
+              {/* Watermark */}
+              <div style={styles.ticketWatermark}>{ticket.guestName}</div>
+
+              {/* Header */}
+              <div style={{ ...styles.ticketHeader, position: 'relative', zIndex: 1 }}>
+                {selfiePreview && (
+                  <img src={selfiePreview} alt={ticket.guestName} style={styles.ticketSelfieOnCard} />
+                )}
+                <p style={styles.ticketPre}>ATTENDANCE TICKET</p>
+                <h2 style={styles.ticketCouple}>Bamai &amp; Kazah</h2>
+                <p style={styles.ticketDate}>11 April 2026 · Kaduna</p>
+              </div>
+
+              <div style={styles.ticketDivider} />
+
+              {/* Guest info + QR */}
+              <div style={{ ...styles.ticketBody, position: 'relative', zIndex: 1 }}>
+                <div style={styles.ticketInfo}>
+                  <p style={styles.ticketLabel}>GUEST NAME</p>
+                  <p style={styles.ticketName}>{ticket.guestName}</p>
+                  <p style={{ ...styles.ticketLabel, marginTop: '16px' }}>ATTENDANCE ID</p>
+                  <p style={styles.ticketId}>{ticket.ticketId}</p>
+                  <div style={styles.ticketStatus}>
+                    <span style={{
+                      ...styles.statusBadge,
+                      ...(ticket.status === 'approved' ? styles.statusApproved : styles.statusPending),
+                    }}>
+                      {ticket.status === 'approved' ? '✓ Verified' : '⏳ Pending Verification'}
+                    </span>
+                  </div>
+                </div>
+                {qrDataUrl && (
+                  <div style={styles.ticketQR}>
+                    <img src={qrDataUrl} alt="QR Code" style={{ width: '100px', height: '100px' }} />
+                    <p style={styles.ticketQRLabel}>Scan to verify</p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ ...styles.ticketFooter, position: 'relative', zIndex: 1 }}>
+                <p style={styles.ticketVenue}>Our Lady of Fatima Chaplaincy, Sabon Tasha · Epitome Event Center, Barnawa</p>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div style={styles.ticketActions}>
+              <button onClick={downloadAsPDF} className="btn btn-primary" style={styles.actionBtn}>📄 Download PDF</button>
+              <button onClick={downloadAsImage} className="btn btn-secondary" style={styles.actionBtn}>🖼️ Download Image</button>
+              <button onClick={shareToWhatsApp} style={{ ...styles.actionBtn, ...styles.whatsappBtn }}>💬 Share Ticket</button>
+              <button onClick={handlePrint} style={styles.actionBtn2}>🖨️ Print</button>
+            </div>
           </div>
-
-          <p style={{ textAlign: 'center', fontSize: '13px', color: '#7A6060', marginTop: '12px' }}>
-            Ticket ID: <strong>{ticket.ticketId}</strong> · Save this for your records
-          </p>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -355,7 +377,52 @@ const styles = {
   },
 
   /* Ticket */
-  ticketSection: { maxWidth: '420px', margin: '0 auto' },
+  ticketSection: { maxWidth: '460px', margin: '0 auto' },
+
+  confirmBanner: {
+    textAlign: 'center', background: 'linear-gradient(135deg, #065F46, #047857)',
+    color: 'white', borderRadius: '16px', padding: '24px 20px', marginBottom: '20px',
+  },
+  confirmTitle: { fontSize: '22px', fontWeight: '700', margin: '0 0 6px', color: 'white' },
+  confirmSub: { fontSize: '14px', margin: 0, opacity: 0.9, lineHeight: '1.5' },
+
+  ticketSelfie: {
+    width: '200px', height: '200px', borderRadius: '50%',
+    objectFit: 'cover', border: '4px solid #7A1428', display: 'block', margin: '0 auto',
+    boxShadow: '0 4px 20px rgba(122,20,40,0.25)',
+  },
+  ticketSelfieOnCard: {
+    width: '120px', height: '120px', borderRadius: '50%',
+    objectFit: 'cover', border: '3px solid rgba(196,149,106,0.8)',
+    display: 'block', margin: '0 auto 12px', position: 'relative', zIndex: 1,
+  },
+
+  linkCard: {
+    background: 'white', border: '1px solid #EDE0D8',
+    borderRadius: '14px', padding: '20px', marginBottom: '20px',
+    boxShadow: '0 2px 12px rgba(122,20,40,0.06)',
+  },
+  linkLabel: {
+    fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase',
+    color: '#7A6060', margin: '0 0 8px',
+  },
+  linkRow: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' },
+  ticketLinkText: {
+    flex: 1, fontSize: '13px', color: '#7A1428', fontWeight: '600',
+    textDecoration: 'none', wordBreak: 'break-all',
+  },
+  copyBtn: {
+    background: 'none', border: '1px solid #EDE0D8', borderRadius: '8px',
+    padding: '6px 10px', cursor: 'pointer', fontSize: '16px', flexShrink: 0,
+  },
+  whatsappShareBtn: {
+    display: 'block', width: '100%', marginTop: '12px', padding: '11px',
+    background: '#25D366', color: 'white', border: 'none', borderRadius: '50px',
+    cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+  },
+  bookmarkNote: {
+    fontSize: '12px', color: '#7A6060', margin: '10px 0 0', textAlign: 'center', lineHeight: '1.5',
+  },
   ticketCard: {
     background: 'linear-gradient(160deg, #7A1428 0%, #5C0F1E 100%)',
     borderRadius: '20px', overflow: 'hidden',

@@ -54,17 +54,22 @@ export default function Navbar() {
               <Link to="/upload" style={styles.link}>Upload</Link>
               <Link to="/search" style={styles.link}>Find My Photos</Link>
               <Link to="/get-ticket" style={styles.link}>Get Ticket</Link>
+              <Link to="/my-ticket" style={styles.link}>My Ticket</Link>
               <Link to="/gallery" style={styles.link}>
                 {isAdmin ? 'All Photos' : 'My Gallery'}
               </Link>
               {isAdmin && (
-                <Link to="/admin/tickets" style={styles.adminBadge}>Admin</Link>
+                <>
+                  <Link to="/admin/tickets" style={styles.adminBadge}>🎟️ Manage Tickets</Link>
+                  <Link to="/admin/scan" style={styles.adminScanBadge}>📷 Scan Tickets</Link>
+                </>
               )}
               <button onClick={handleLogout} style={styles.logoutBtn}>Sign Out</button>
             </>
           ) : (
             <>
               <Link to="/get-ticket" style={styles.link}>🎟️ Get Ticket</Link>
+              <Link to="/my-ticket" style={styles.link}>My Ticket</Link>
               <Link to="/login" style={styles.link}>Sign In</Link>
               <Link to="/register" className="btn btn-primary" style={styles.registerBtn}>Register</Link>
             </>
@@ -87,13 +92,20 @@ export default function Navbar() {
               <Link to="/upload" style={styles.mobileLink}>Upload</Link>
               <Link to="/search" style={styles.mobileLink}>Find My Photos</Link>
               <Link to="/get-ticket" style={styles.mobileLink}>🎟️ Get Ticket</Link>
+              <Link to="/my-ticket" style={styles.mobileLink}>My Ticket</Link>
               <Link to="/gallery" style={styles.mobileLink}>{isAdmin ? 'All Photos' : 'My Gallery'}</Link>
-              {isAdmin && <Link to="/admin/tickets" style={{ ...styles.mobileLink, color: '#7A1428', fontWeight: 600 }}>Admin Tickets</Link>}
+              {isAdmin && (
+                <>
+                  <Link to="/admin/tickets" style={{ ...styles.mobileLink, color: '#7A1428', fontWeight: 700, background: '#FDF0F3', borderLeft: '3px solid #7A1428' }}>🎟️ Manage Tickets</Link>
+                  <Link to="/admin/scan" style={{ ...styles.mobileLink, color: '#5C0F1E', fontWeight: 700, background: '#F7EDE0', borderLeft: '3px solid #C4956A' }}>📷 Scan Tickets</Link>
+                </>
+              )}
               <button onClick={handleLogout} style={styles.mobileLogout}>Sign Out</button>
             </>
           ) : (
             <>
               <Link to="/get-ticket" style={styles.mobileLink}>🎟️ Get Ticket</Link>
+              <Link to="/my-ticket" style={styles.mobileLink}>My Ticket</Link>
               <Link to="/login" style={styles.mobileLink}>Sign In</Link>
               <Link to="/register" style={styles.mobileLink}>Register</Link>
             </>
@@ -141,13 +153,21 @@ const styles = {
   adminBadge: {
     background: '#F5E6E9',
     color: '#7A1428',
-    fontSize: '10px',
+    fontSize: '11px',
     fontWeight: '700',
-    letterSpacing: '1.5px',
-    textTransform: 'uppercase',
-    padding: '4px 12px',
+    padding: '5px 12px',
     borderRadius: '20px',
     border: '1px solid #e8c0ca',
+    textDecoration: 'none',
+  },
+  adminScanBadge: {
+    background: '#2D1010',
+    color: '#C4956A',
+    fontSize: '11px',
+    fontWeight: '700',
+    padding: '5px 12px',
+    borderRadius: '20px',
+    border: '1px solid #5C1A28',
     textDecoration: 'none',
   },
   logoutBtn: {
