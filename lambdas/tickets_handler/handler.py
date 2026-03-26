@@ -91,7 +91,7 @@ def create_ticket(event):
         return respond(400, {'error': 'Invalid JSON body'})
 
     guest_name = (body.get('guestName') or '').strip()
-    phone = (body.get('phone') or '').strip()
+    phone = normalize_phone((body.get('phone') or '').strip())
     selfie_b64 = body.get('selfieImage') or ''
     content_type = body.get('contentType') or 'image/jpeg'
 
@@ -291,16 +291,17 @@ def get_ticket_by_phone(event):
         return respond(400, {'error': 'phone query parameter is required'})
 
     normalized = normalize_phone(phone_raw)
+    # Derive local "0..." format in case ticket was stored before normalization was added
+    local_fmt = '0' + normalized[3:] if normalized.startswith('234') and len(normalized) == 13 else normalized
 
     table = dynamodb.Table(TICKETS_TABLE)
-    # Scan for matching phone — try both normalized and original format
     from boto3.dynamodb.conditions import Attr
-    resp = table.scan(FilterExpression=Attr('phone').eq(normalized))
-    items = resp.get('Items', [])
-    if not items:
-        # Try original format as stored
-        resp2 = table.scan(FilterExpression=Attr('phone').eq(phone_raw))
-        items = resp2.get('Items', [])
+    items = []
+    for candidate in dict.fromkeys([normalized, local_fmt, phone_raw]):  # deduplicated, ordered
+        resp = table.scan(FilterExpression=Attr('phone').eq(candidate))
+        items = resp.get('Items', [])
+        if items:
+            break
     if not items:
         return respond(404, {'error': 'No ticket found for this phone number'})
 

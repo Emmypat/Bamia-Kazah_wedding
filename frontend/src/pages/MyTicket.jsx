@@ -1,11 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { getMyTicketByPhone } from '../utils/api';
-
-function normalizePhone(phone) {
-  const clean = phone.replace(/\s+/g, '').replace(/^\+/, '');
-  return clean.startsWith('0') ? '234' + clean.slice(1) : clean;
-}
 
 export default function MyTicket() {
   const [phone, setPhone] = useState('');
@@ -27,8 +22,7 @@ export default function MyTicket() {
     e.preventDefault();
     setLoading(true); setError(''); setTicket(null);
     try {
-      const normalized = normalizePhone(phone);
-      const data = await getMyTicketByPhone(normalized);
+      const data = await getMyTicketByPhone(phone.trim());
       setTicket(data);
     } catch (err) {
       if (err.response?.status === 404) {
@@ -91,18 +85,6 @@ export default function MyTicket() {
       {/* Ticket result */}
       {ticket && (
         <div style={styles.ticketSection}>
-          {/* Selfie */}
-          {ticket.selfieUrl && (
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <img
-                src={ticket.selfieUrl}
-                alt={ticket.guestName}
-                crossOrigin="anonymous"
-                style={styles.selfiePhoto}
-              />
-            </div>
-          )}
-
           {/* Status banner */}
           {ticket.status === 'approved' && (
             <div style={styles.verifiedBanner}>
@@ -127,9 +109,9 @@ export default function MyTicket() {
           <div style={styles.ticketCard}>
             <div style={styles.watermark}>{ticket.guestName}</div>
 
-            {/* Selfie inside card */}
+            {/* Selfie — dominant, first thing on the ticket */}
             {ticket.selfieUrl && (
-              <div style={{ textAlign: 'center', paddingTop: '24px', position: 'relative', zIndex: 1 }}>
+              <div style={{ textAlign: 'center', paddingTop: '8px', position: 'relative', zIndex: 1 }}>
                 <img
                   src={ticket.selfieUrl}
                   alt={ticket.guestName}
@@ -216,16 +198,13 @@ const styles = {
   fullBtn: { width: '100%', justifyContent: 'center', padding: '14px', marginTop: '4px' },
   noTicketNote: { textAlign: 'center', marginTop: '16px', fontSize: '13px', color: '#7A6060' },
 
-  ticketSection: { maxWidth: '420px', margin: '0 auto' },
+  ticketSection: { maxWidth: '480px', margin: '0 auto' },
 
-  selfiePhoto: {
-    width: '200px', height: '200px', borderRadius: '50%',
-    objectFit: 'cover', border: '4px solid #7A1428', display: 'block', margin: '0 auto',
-    boxShadow: '0 4px 20px rgba(122,20,40,0.25)',
-  },
   selfieOnCard: {
-    width: '120px', height: '120px', borderRadius: '50%',
-    objectFit: 'cover', border: '3px solid rgba(196,149,106,0.8)',
+    width: '300px', height: '300px', borderRadius: '50%',
+    objectFit: 'cover', objectPosition: 'center top',
+    border: '4px solid #C4956A',
+    boxShadow: '0 0 0 6px rgba(196,149,106,0.2), 0 8px 32px rgba(0,0,0,0.4)',
     display: 'block', margin: '0 auto',
   },
 
@@ -262,7 +241,7 @@ const styles = {
     opacity: 0.08, pointerEvents: 'none', whiteSpace: 'nowrap',
     zIndex: 0, letterSpacing: '2px',
   },
-  ticketHeader: { padding: '16px 28px 20px', textAlign: 'center' },
+  ticketHeader: { padding: '12px 28px 16px', textAlign: 'center' },
   ticketPre: {
     fontSize: '9px', letterSpacing: '3px', textTransform: 'uppercase',
     color: 'rgba(196,149,106,0.9)', margin: '0 0 8px',

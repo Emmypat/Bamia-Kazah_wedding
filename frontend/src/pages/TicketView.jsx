@@ -37,8 +37,8 @@ export default function TicketView() {
     try {
       const canvas = await html2canvas(ticketRef.current, { scale: 2, useCORS: true, backgroundColor: '#7A1428' });
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [90, 140] });
-      pdf.addImage(imgData, 'PNG', 0, 0, 90, 140);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [90, 170] });
+      pdf.addImage(imgData, 'PNG', 0, 0, 90, 170);
       pdf.save(`BamaiKazah-Ticket-${ticket.ticketId}.pdf`);
     } catch {
       alert('PDF download failed. Try "Download as Image" instead.');
@@ -98,26 +98,14 @@ export default function TicketView() {
           </div>
         )}
 
-        {/* Guest selfie */}
-        {ticket.selfieUrl && (
-          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-            <img
-              src={ticket.selfieUrl}
-              alt={ticket.guestName}
-              crossOrigin="anonymous"
-              style={styles.selfiePhoto}
-            />
-          </div>
-        )}
-
         {/* Ticket card */}
         <div ref={ticketRef} style={styles.ticketCard}>
           {/* Watermark */}
           <div style={styles.watermark}>{ticket.guestName}</div>
 
-          {/* Selfie inside downloadable card */}
+          {/* Selfie — dominant, first thing on the ticket */}
           {ticket.selfieUrl && (
-            <div style={{ textAlign: 'center', paddingTop: '20px', position: 'relative', zIndex: 1 }}>
+            <div style={{ textAlign: 'center', paddingTop: '8px', position: 'relative', zIndex: 1 }}>
               <img
                 src={ticket.selfieUrl}
                 alt={ticket.guestName}
@@ -209,16 +197,13 @@ const styles = {
   title: { fontSize: 'clamp(22px, 3.5vw, 30px)', color: '#2D2020', margin: '0 0 6px', textAlign: 'center' },
   subtitle: { color: '#7A6060', marginBottom: '28px', fontSize: '14px', textAlign: 'center' },
 
-  ticketSection: { maxWidth: '420px', margin: '0 auto' },
+  ticketSection: { maxWidth: '480px', margin: '0 auto' },
 
-  selfiePhoto: {
-    width: '200px', height: '200px', borderRadius: '50%',
-    objectFit: 'cover', border: '4px solid #7A1428', display: 'block', margin: '0 auto',
-    boxShadow: '0 4px 20px rgba(122,20,40,0.25)',
-  },
   selfieOnCard: {
-    width: '120px', height: '120px', borderRadius: '50%',
-    objectFit: 'cover', border: '3px solid rgba(196,149,106,0.8)',
+    width: '300px', height: '300px', borderRadius: '50%',
+    objectFit: 'cover', objectPosition: 'center top',
+    border: '4px solid #C4956A',
+    boxShadow: '0 0 0 6px rgba(196,149,106,0.2), 0 8px 32px rgba(0,0,0,0.4)',
     display: 'block', margin: '0 auto',
   },
   verifiedBanner: {
@@ -243,7 +228,7 @@ const styles = {
     opacity: 0.08, pointerEvents: 'none', whiteSpace: 'nowrap',
     zIndex: 0, letterSpacing: '2px',
   },
-  ticketHeader: { padding: '16px 28px 20px', textAlign: 'center', position: 'relative', zIndex: 1 },
+  ticketHeader: { padding: '12px 28px 16px', textAlign: 'center', position: 'relative', zIndex: 1 },
   ticketPre: {
     fontSize: '9px', letterSpacing: '3px', textTransform: 'uppercase',
     color: 'rgba(196,149,106,0.9)', margin: '0 0 8px',
