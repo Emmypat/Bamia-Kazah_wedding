@@ -287,3 +287,43 @@ resource "aws_lambda_permission" "api_tickets" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/tickets*"
 }
+
+# ── Route: POST /reset-guest-auth (public, no auth) ───────────
+# Used by auth.js to migrate legacy guest accounts to derived passwords.
+resource "aws_apigatewayv2_integration" "reset_guest_auth" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.upload_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "reset_guest_auth" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /reset-guest-auth"
+  target    = "integrations/${aws_apigatewayv2_integration.reset_guest_auth.id}"
+  # No authorization_type → public route
+}
+
+resource "aws_lambda_permission" "api_reset_guest_auth" {
+  statement_id  = "AllowAPIGWInvokeResetGuestAuth"
+  action        = "lambda:InvokeFunction"
+  function_name = var.upload_handler_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/reset-guest-auth"
+}
+
+# ── Route: GET /tickets/{ticketId}/view (public, no auth) ─────
+# Public ticket view page — returns safe fields only (no selfieKey/userId).
+resource "aws_apigatewayv2_integration" "ticket_view_public" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "ticket_view_public" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /tickets/{ticketId}/view"
+  target    = "integrations/${aws_apigatewayv2_integration.ticket_view_public.id}"
+  # No authorization_type → public route
+}

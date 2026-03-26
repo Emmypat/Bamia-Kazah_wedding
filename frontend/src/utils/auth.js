@@ -1,56 +1,80 @@
-/**
- * auth.js — Cognito authentication utilities
- *
- * Uses AWS Amplify to handle Cognito auth flows.
- * Amplify abstracts the complex OAuth/SRP handshake into simple JS calls.
- *
- * Configuration is read from environment variables set at build time:
- * REACT_APP_USER_POOL_ID and REACT_APP_USER_POOL_CLIENT_ID
- * (Terraform outputs these values after deployment)
- */
-
+import axios from 'axios';
 import {
   signIn,
   signOut,
   signUp,
   confirmSignUp,
+  resetPassword,
+  confirmResetPassword,
   getCurrentUser as amplifyGetCurrentUser,
   fetchAuthSession,
 } from 'aws-amplify/auth';
 
-// Amplify is configured once in main.jsx using VITE_COGNITO_USER_POOL_ID
-// and VITE_COGNITO_CLIENT_ID. No configuration needed here.
+// Same base URL pattern as api.js — avoids circular import
+const _apiBase = import.meta.env.VITE_API_URL || '/api';
+
+// ── Phone helpers ──────────────────────────────────────────────
+
+/**
+ * Normalize any Nigerian phone format to canonical digits.
+ * "08012345678" and "+2348012345678" both → "2348012345678"
+ */
+function normalizePhone(phone) {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('0')) digits = '234' + digits.slice(1);
+  return digits;
+}
 
 /**
  * Derive a deterministic password from a phone number.
- * Guests never see or type this — it's generated behind the scenes.
+ * Uses the normalized form so +234XXX and 0XXX produce the same password.
+ * Guests never see or type this — generated behind the scenes.
  */
 function guestPassword(phone) {
-  const digits = phone.replace(/\D/g, '');
-  return `Wed@${digits}#Bk26`;
+  return `Wed@${normalizePhone(phone)}#Bk26`;
 }
+
+/**
+ * Convert a phone number to the synthetic Cognito email.
+ */
+function phoneToEmail(phone) {
+  return `${normalizePhone(phone)}@weddingguest.ng`;
+}
+
+/**
+ * Call the public /reset-guest-auth endpoint to migrate a legacy account's
+ * password to the current derived password. Silent on failure.
+ */
+async function migrateLegacyGuest(phone) {
+  try {
+    await axios.post(`${_apiBase}/reset-guest-auth`, { phone });
+  } catch (_) {
+    // Ignore — subsequent signIn will show a clear error if migration also failed
+  }
+}
+
+// ── Guest auth ─────────────────────────────────────────────────
 
 /**
  * Register a new guest account (used internally / for admin registration).
  */
 export async function registerGuest({ name, email, password }) {
-  const result = await signUp({
+  return signUp({
     username: email,
     password,
-    options: {
-      userAttributes: { name, email },
-    },
+    options: { userAttributes: { name, email } },
   });
-  return result;
 }
 
 /**
  * Passwordless guest register-or-login.
- * Tries to register first; if the account already exists, logs in instead.
- * The guest only provides name + phone — no password visible to them.
+ * - New user: registers with derived password → auto-confirmed → signs in.
+ * - Returning user (new system): signs in directly with derived password.
+ * - Legacy user (old password): auto-migrates via /reset-guest-auth → signs in.
  */
 export async function registerOrLoginGuest({ name, email, phone }) {
   const password = guestPassword(phone);
+
   try {
     await signUp({
       username: email,
@@ -59,55 +83,77 @@ export async function registerOrLoginGuest({ name, email, phone }) {
     });
     // pre_signup Lambda auto-confirms — sign in immediately
     return await signIn({ username: email, password });
-  } catch (err) {
-    if (err.name === 'UsernameExistsException') {
-      return await signIn({ username: email, password });
+  } catch (signUpErr) {
+    if (signUpErr.name === 'UsernameExistsException') {
+      // Account already exists — try logging in
+      try {
+        return await signIn({ username: email, password });
+      } catch (loginErr) {
+        if (loginErr.name === 'NotAuthorizedException') {
+          // Legacy user registered before passwordless system — migrate password
+          await migrateLegacyGuest(phone);
+          return await signIn({ username: email, password });
+        }
+        throw loginErr;
+      }
     }
-    throw err;
+    throw signUpErr;
   }
 }
 
 /**
  * Login a returning guest by phone number only.
- * Derives the password the same way registration did.
+ * Derives the correct password and handles legacy accounts automatically.
  */
 export async function loginWithPhone(phone) {
-  const digits = phone.replace(/\D/g, '');
-  const email = digits.startsWith('0')
-    ? `234${digits.slice(1)}@weddingguest.ng`
-    : digits.startsWith('234')
-    ? `${digits}@weddingguest.ng`
-    : `${digits}@weddingguest.ng`;
+  const email = phoneToEmail(phone);
   const password = guestPassword(phone);
-  return signIn({ username: email, password });
+  try {
+    return await signIn({ username: email, password });
+  } catch (err) {
+    if (err.name === 'NotAuthorizedException') {
+      // Could be legacy user with old password — try migration then retry once
+      await migrateLegacyGuest(phone);
+      try {
+        return await signIn({ username: email, password });
+      } catch (retryErr) {
+        // If still NotAuthorized after migration, user likely doesn't exist
+        throw retryErr;
+      }
+    }
+    throw err;
+  }
 }
 
-/**
- * Confirm registration with the verification code from email.
- */
-export async function confirmRegistration(email, code) {
-  return confirmSignUp({ username: email, confirmationCode: code });
-}
+// ── Admin auth ─────────────────────────────────────────────────
 
 /**
- * Sign in with email and password.
- * Returns the Cognito sign-in result.
+ * Sign in with email and password (admin login).
  */
 export async function login(email, password) {
   return signIn({ username: email, password });
 }
 
 /**
- * Sign out the current user.
+ * Initiate admin password reset — sends a code to their email.
  */
+export async function requestPasswordReset(email) {
+  return resetPassword({ username: email });
+}
+
+/**
+ * Confirm admin password reset with the emailed code.
+ */
+export async function confirmPasswordReset(email, code, newPassword) {
+  return confirmResetPassword({ username: email, confirmationCode: code, newPassword });
+}
+
+// ── Shared ─────────────────────────────────────────────────────
+
 export async function logout() {
   return signOut();
 }
 
-/**
- * Get the current authenticated user's info.
- * Returns null if not authenticated.
- */
 export async function getCurrentUser() {
   try {
     return await amplifyGetCurrentUser();
@@ -116,11 +162,6 @@ export async function getCurrentUser() {
   }
 }
 
-/**
- * Get the current JWT access token.
- * Attach this to API requests: Authorization: Bearer <token>
- * Amplify handles token refresh automatically.
- */
 export async function getAccessToken() {
   try {
     const session = await fetchAuthSession();
@@ -130,10 +171,10 @@ export async function getAccessToken() {
   }
 }
 
-/**
- * Check if a user is currently authenticated.
- */
 export async function isAuthenticated() {
-  const user = await getCurrentUser();
-  return user !== null;
+  return (await getCurrentUser()) !== null;
+}
+
+export async function confirmRegistration(email, code) {
+  return confirmSignUp({ username: email, confirmationCode: code });
 }

@@ -146,6 +146,15 @@ export async function updateTicketStatus(ticketId, status) {
 }
 
 /**
+ * Get a ticket by ID without authentication (public page).
+ * Returns safe public fields only: ticketId, guestName, status, dates.
+ */
+export async function getPublicTicket(ticketId) {
+  const response = await axios.get(`${BASE_URL}/tickets/${ticketId}/view`);
+  return response.data;
+}
+
+/**
  * Health check — test if the API is reachable.
  */
 export async function healthCheck() {

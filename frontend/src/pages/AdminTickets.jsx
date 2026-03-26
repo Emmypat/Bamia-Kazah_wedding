@@ -114,6 +114,13 @@ function TicketCard({ ticket, onUpdate, updating }) {
     rejected: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
   }[ticket.status] || {};
 
+  const ticketLink = `${window.location.origin}/ticket/${ticket.ticketId}`;
+  const whatsappMsg = ticket.phone
+    ? `https://wa.me/${ticket.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+        `Hello ${ticket.guestName}! 🎊\n\nYour attendance ticket for Bamai & Kazah's wedding has been verified!\n\nTicket ID: ${ticket.ticketId}\nView & download your ticket: ${ticketLink}\n\nWe look forward to celebrating with you on 11 April 2026!`
+      )}`
+    : null;
+
   return (
     <div style={cardStyles.card}>
       {/* Selfie */}
@@ -157,6 +164,18 @@ function TicketCard({ ticket, onUpdate, updating }) {
           </button>
         )}
       </div>
+
+      {/* WhatsApp notify — shown for approved tickets with a phone number */}
+      {ticket.status === 'approved' && whatsappMsg && (
+        <div style={cardStyles.notifyRow}>
+          <a href={whatsappMsg} target="_blank" rel="noreferrer" style={cardStyles.whatsappBtn}>
+            💬 Notify on WhatsApp
+          </a>
+          <a href={ticketLink} target="_blank" rel="noreferrer" style={cardStyles.viewLink}>
+            View ticket ↗
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -193,7 +212,7 @@ const cardStyles = {
   ticketId: { fontSize: '14px', fontWeight: '700', color: '#7A1428', margin: '0 0 6px', fontFamily: 'monospace' },
   meta: { fontSize: '12px', color: '#7A6060', margin: '0 0 10px', lineHeight: '1.6' },
   badge: { fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', display: 'inline-block' },
-  actions: { padding: '12px 16px 16px', display: 'flex', gap: '8px' },
+  actions: { padding: '12px 16px 8px', display: 'flex', gap: '8px' },
   approveBtn: {
     flex: 1, padding: '9px', borderRadius: '8px',
     background: '#065F46', color: 'white', border: 'none',
@@ -203,5 +222,17 @@ const cardStyles = {
     flex: 1, padding: '9px', borderRadius: '8px',
     background: '#991B1B', color: 'white', border: 'none',
     cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+  },
+  notifyRow: {
+    padding: '0 16px 14px', display: 'flex', gap: '8px', alignItems: 'center',
+  },
+  whatsappBtn: {
+    flex: 1, padding: '9px', borderRadius: '8px', textAlign: 'center',
+    background: '#25D366', color: 'white', textDecoration: 'none',
+    fontSize: '12px', fontWeight: '600', display: 'block',
+  },
+  viewLink: {
+    fontSize: '12px', color: '#7A1428', textDecoration: 'none', fontWeight: '600',
+    whiteSpace: 'nowrap',
   },
 };

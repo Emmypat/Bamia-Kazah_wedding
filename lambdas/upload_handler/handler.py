@@ -29,6 +29,7 @@ import json
 import base64
 import hashlib
 import os
+import re
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -48,6 +49,7 @@ logger.setLevel(logging.INFO)
 s3 = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
 rekognition = boto3.client("rekognition")
+cognito = boto3.client("cognito-idp")
 
 # ── Environment Variables ────────────────────────────────────────
 PHOTOS_BUCKET = os.environ["PHOTOS_BUCKET"]
@@ -56,6 +58,7 @@ PHOTOS_TABLE = os.environ["PHOTOS_TABLE"]
 REKOGNITION_COLLECTION_ID = os.environ["REKOGNITION_COLLECTION_ID"]
 REKOGNITION_MIN_CONFIDENCE = float(os.environ.get("REKOGNITION_MIN_CONFIDENCE", "90"))
 PHOTO_URL_EXPIRY_HOURS = int(os.environ.get("PHOTO_URL_EXPIRY_HOURS", "48"))
+COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
 
 # ── DynamoDB Table References ────────────────────────────────────
 faces_table = dynamodb.Table(FACES_TABLE)
@@ -93,6 +96,8 @@ def lambda_handler(event: dict, context) -> dict:
         return handle_upload(event)
     elif route_key == "POST /register-couple":
         return handle_register_couple(event)
+    elif route_key == "POST /reset-guest-auth":
+        return handle_reset_guest_auth(event)
     else:
         return error_response(404, f"Route not found: {route_key}")
 
@@ -344,6 +349,60 @@ def handle_register_couple(event: dict) -> dict:
         "faceId": face_ids[0],
         "personName": person_name,
     })
+
+
+# ─────────────────────────────────────────────────────────────────
+# RESET GUEST AUTH
+# ─────────────────────────────────────────────────────────────────
+
+def normalize_phone(phone: str) -> str:
+    """Canonicalize Nigerian phone to digits: 08012345678 or +2348012345678 → 2348012345678"""
+    digits = re.sub(r"\D", "", phone)
+    if digits.startswith("0"):
+        digits = "234" + digits[1:]
+    return digits
+
+
+def handle_reset_guest_auth(event: dict) -> dict:
+    """
+    Public endpoint: reset a guest's Cognito password to the current derived password.
+    Used when a guest registered before the passwordless system was introduced.
+    No authentication required — safe because the new password is deterministic
+    from the phone number (the user still needs their phone to log in).
+    """
+    if not COGNITO_USER_POOL_ID:
+        logger.error("COGNITO_USER_POOL_ID not set")
+        return error_response(500, "Server configuration error")
+
+    try:
+        body = parse_body(event)
+    except ValueError as e:
+        return error_response(400, f"Invalid request body: {str(e)}")
+
+    phone = (body.get("phone") or "").strip()
+    if not phone:
+        return error_response(400, "Missing 'phone' field")
+
+    normalized = normalize_phone(phone)
+    email = f"{normalized}@weddingguest.ng"
+    password = f"Wed@{normalized}#Bk26"
+
+    try:
+        cognito.admin_set_user_password(
+            UserPoolId=COGNITO_USER_POOL_ID,
+            Username=email,
+            Password=password,
+            Permanent=True,
+        )
+        logger.info(f"Password reset for guest: {email}")
+        return success_response({"message": "Password reset successful"})
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code == "UserNotFoundException":
+            # Not an error from caller's perspective — just means no legacy account
+            return success_response({"message": "No account found"})
+        logger.error(f"Cognito AdminSetUserPassword failed: {e}")
+        return error_response(500, "Failed to reset password")
 
 
 # ─────────────────────────────────────────────────────────────────

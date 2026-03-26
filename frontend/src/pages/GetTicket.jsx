@@ -145,7 +145,7 @@ export default function GetTicket() {
             <div className="form-group">
               <label>Full Name</label>
               <input
-                placeholder="e.g. Sarah Johnson"
+                placeholder="e.g. Bamai Patrick"
                 value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
                 required
@@ -225,8 +225,11 @@ export default function GetTicket() {
         <div style={styles.ticketSection}>
           {/* The printable / downloadable ticket */}
           <div ref={ticketRef} style={styles.ticketCard}>
+            {/* Watermark */}
+            <div style={styles.ticketWatermark}>{ticket.guestName}</div>
+
             {/* Header */}
-            <div style={styles.ticketHeader}>
+            <div style={{ ...styles.ticketHeader, position: 'relative', zIndex: 1 }}>
               <p style={styles.ticketPre}>ATTENDANCE TICKET</p>
               <h2 style={styles.ticketCouple}>Bamai &amp; Kazah</h2>
               <p style={styles.ticketDate}>11 April 2026 · Kaduna</p>
@@ -236,11 +239,11 @@ export default function GetTicket() {
             <div style={styles.ticketDivider} />
 
             {/* Guest info + QR */}
-            <div style={styles.ticketBody}>
+            <div style={{ ...styles.ticketBody, position: 'relative', zIndex: 1 }}>
               <div style={styles.ticketInfo}>
                 <p style={styles.ticketLabel}>GUEST NAME</p>
                 <p style={styles.ticketName}>{ticket.guestName}</p>
-                <p style={styles.ticketLabel} style={{ marginTop: '16px' }}>ATTENDANCE ID</p>
+                <p style={{ ...styles.ticketLabel, marginTop: '16px' }}>ATTENDANCE ID</p>
                 <p style={styles.ticketId}>{ticket.ticketId}</p>
                 <div style={styles.ticketStatus}>
                   <span style={{
@@ -260,7 +263,7 @@ export default function GetTicket() {
             </div>
 
             {/* Footer */}
-            <div style={styles.ticketFooter}>
+            <div style={{ ...styles.ticketFooter, position: 'relative', zIndex: 1 }}>
               <p style={styles.ticketVenue}>Our Lady of Fatima Chaplaincy, Sabon Tasha · Epitome Event Center, Barnawa</p>
             </div>
           </div>
@@ -359,6 +362,14 @@ const styles = {
     boxShadow: '0 12px 48px rgba(122,20,40,0.3)',
     marginBottom: '20px',
     fontFamily: 'Inter, sans-serif',
+    position: 'relative',
+  },
+  ticketWatermark: {
+    position: 'absolute', top: '50%', left: '50%',
+    transform: 'translate(-50%, -50%) rotate(-30deg)',
+    fontSize: '36px', fontWeight: '300', color: 'white',
+    opacity: 0.08, pointerEvents: 'none', whiteSpace: 'nowrap',
+    zIndex: 0, letterSpacing: '2px',
   },
   ticketHeader: {
     padding: '28px 28px 20px', textAlign: 'center',

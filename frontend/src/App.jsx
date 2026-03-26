@@ -10,6 +10,7 @@ import Search from './pages/Search';
 import Gallery from './pages/Gallery';
 import GetTicket from './pages/GetTicket';
 import AdminTickets from './pages/AdminTickets';
+import TicketView from './pages/TicketView';
 import { isAuthenticated, getCurrentUser, getAccessToken } from './utils/auth';
 import './App.css';
 
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="/ticket/:ticketId" element={<TicketView />} />
           <Route path="/get-ticket" element={
             <ProtectedRoute><GetTicket /></ProtectedRoute>
           } />

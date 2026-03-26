@@ -216,6 +216,24 @@ def get_ticket(event, ticket_id):
     return respond(200, ticket)
 
 
+def get_ticket_public(ticket_id):
+    """GET /tickets/{id}/view — unauthenticated public view of a ticket."""
+    table = dynamodb.Table(TICKETS_TABLE)
+    resp = table.get_item(Key={'ticketId': ticket_id})
+    ticket = resp.get('Item')
+    if not ticket:
+        return respond(404, {'error': 'Ticket not found'})
+
+    # Return only safe public fields — no selfieKey or userId
+    return respond(200, {
+        'ticketId': ticket['ticketId'],
+        'guestName': ticket.get('guestName', ''),
+        'status': ticket.get('status', ''),
+        'createdAt': ticket.get('createdAt', ''),
+        'verifiedAt': ticket.get('verifiedAt', ''),
+    })
+
+
 # ── Lambda entry point ──────────────────────────────────────────
 
 def lambda_handler(event, context):
@@ -232,6 +250,15 @@ def lambda_handler(event, context):
             return create_ticket(event)
         if method == 'GET':
             return list_tickets(event)
+        return respond(405, {'error': 'Method not allowed'})
+
+    # Route: /tickets/{id}/view (public, no auth)
+    if raw_path.startswith('/tickets/') and raw_path.endswith('/view'):
+        ticket_id = raw_path[len('/tickets/'):-len('/view')]
+        if not ticket_id:
+            return respond(400, {'error': 'Ticket ID required'})
+        if method == 'GET':
+            return get_ticket_public(ticket_id)
         return respond(405, {'error': 'Method not allowed'})
 
     # Route: /tickets/{id}

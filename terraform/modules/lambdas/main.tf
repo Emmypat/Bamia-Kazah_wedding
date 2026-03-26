@@ -116,6 +116,13 @@ resource "aws_iam_role_policy" "lambda_custom" {
         Effect = "Allow"
         Action = ["sns:Publish"]
         Resource = var.sns_topic_arn
+      },
+      # Cognito: reset guest passwords (for legacy user migration)
+      {
+        Sid    = "CognitoSetPassword"
+        Effect = "Allow"
+        Action = ["cognito-idp:AdminSetUserPassword"]
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userpool/${var.cognito_user_pool_id}"
       }
     ]
   })
@@ -189,6 +196,7 @@ resource "aws_lambda_function" "upload_handler" {
       REKOGNITION_MIN_CONFIDENCE = tostring(var.rekognition_min_confidence)
       PHOTO_URL_EXPIRY_HOURS     = tostring(var.photo_url_expiry_hours)
       AWS_ACCOUNT_ID             = data.aws_caller_identity.current.account_id
+      COGNITO_USER_POOL_ID       = var.cognito_user_pool_id
     }
   }
 

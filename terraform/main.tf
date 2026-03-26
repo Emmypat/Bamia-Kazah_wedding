@@ -119,6 +119,7 @@ module "lambdas" {
   couple_name           = var.couple_name
   wedding_date          = var.wedding_date
   aws_region            = var.aws_region
+  cognito_user_pool_id  = module.auth.user_pool_id
 }
 
 # ── Module: API Gateway ───────────────────────────────────────

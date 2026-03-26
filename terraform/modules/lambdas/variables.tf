@@ -20,3 +20,4 @@ variable "photo_url_expiry_hours" { type = number }
 variable "couple_name" { type = string }
 variable "wedding_date" { type = string }
 variable "aws_region" { type = string }
+variable "cognito_user_pool_id" { type = string }
