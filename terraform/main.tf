@@ -104,6 +104,8 @@ module "lambdas" {
   couple_faces_table_arn  = module.database.couple_faces_table_arn
   tickets_table_name      = module.database.tickets_table_name
   tickets_table_arn       = module.database.tickets_table_arn
+  preapproved_table_name  = module.database.preapproved_guests_table_name
+  preapproved_table_arn   = module.database.preapproved_guests_table_arn
 
   # Rekognition
   rekognition_collection_id  = var.rekognition_collection_id

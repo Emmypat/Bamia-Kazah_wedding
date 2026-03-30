@@ -89,7 +89,13 @@ export default function MyTicket() {
           {ticket.status === 'approved' && (
             <div style={styles.verifiedBanner}>
               <span style={{ fontSize: '18px' }}>✓</span>
-              <span>Your ticket has been verified by the wedding team!</span>
+              <span>
+                {ticket.approved_by === 'auto'
+                  ? 'Your ticket was automatically approved — your phone was pre-registered!'
+                  : ticket.approved_by === 'admin_issued'
+                  ? 'Your ticket was issued directly by the wedding team.'
+                  : 'Your ticket has been verified by the wedding team!'}
+              </span>
             </div>
           )}
           {ticket.status === 'rejected' && (

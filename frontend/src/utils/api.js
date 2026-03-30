@@ -205,6 +205,105 @@ export async function healthCheck() {
 }
 
 /**
+ * Revoke a ticket back to pending (admin only).
+ */
+export async function revokeTicket(ticketId) {
+  const headers = await getAuthHeaders();
+  const response = await axios.put(
+    `${BASE_URL}/tickets/${ticketId}`,
+    { status: 'pending' },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * List all pre-approved phone records (admin only).
+ */
+export async function getPreapprovedPhones() {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/tickets/preapproved`, { headers });
+  return response.data;
+}
+
+/**
+ * Add one or more pre-approved phones (admin only).
+ * @param {string[]} phones — Array of phone numbers
+ * @param {string[]} guestNames — Matching guest names (optional)
+ */
+export async function addPreapprovedPhones(phones, guestNames = []) {
+  const headers = await getAuthHeaders();
+  const response = await axios.post(
+    `${BASE_URL}/tickets/preapprove`,
+    { phones, guestNames },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * Remove a pre-approved phone record by ID (admin only).
+ */
+export async function removePreapprovedPhone(id) {
+  const headers = await getAuthHeaders();
+  const response = await axios.delete(`${BASE_URL}/tickets/preapprove/${id}`, { headers });
+  return response.data;
+}
+
+/**
+ * Export all tickets as CSV (admin only).
+ * Returns the raw CSV string.
+ */
+export async function exportTicketsCSV() {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/tickets/export`, {
+    headers,
+    responseType: 'text',
+  });
+  return response.data;
+}
+
+/**
+ * Admin issues a ticket directly on behalf of a guest.
+ * Ticket is immediately approved.
+ * @param {object} opts
+ * @param {string} opts.guestName
+ * @param {string} [opts.phone]
+ * @param {File}   [opts.selfieFile] — optional selfie; default image used if omitted
+ */
+export async function issueTicket({ guestName, phone = '', selfieFile = null }) {
+  const headers = await getAuthHeaders();
+  let selfieImage = null;
+  let contentType = 'image/jpeg';
+  if (selfieFile) {
+    selfieImage = await fileToBase64(selfieFile);
+    contentType = selfieFile.type;
+  }
+  const response = await axios.post(
+    `${BASE_URL}/tickets/issue`,
+    { guestName, phone, selfieImage, contentType },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * Upload the default ticket image (admin only).
+ * Used when admin-issued tickets have no selfie.
+ * @param {File} imageFile
+ */
+export async function setDefaultTicketImage(imageFile) {
+  const headers = await getAuthHeaders();
+  const image = await fileToBase64(imageFile);
+  const response = await axios.put(
+    `${BASE_URL}/tickets/default-image`,
+    { image, contentType: imageFile.type },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
  * Convert a File object to base64 string.
  */
 function fileToBase64(file) {

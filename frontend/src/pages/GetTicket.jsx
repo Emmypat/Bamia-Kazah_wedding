@@ -67,7 +67,12 @@ export default function GetTicket() {
     setLoading(true); setError('');
     try {
       const data = await createTicket({ selfieFile: selfie, guestName: form.name, phone: form.phone });
-      setTicket(data);
+      // If a ticket already existed for this phone, use the existing one
+      if (data.existing && data.ticket) {
+        setTicket(data.ticket);
+      } else {
+        setTicket(data);
+      }
       setStep('ticket');
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Failed to generate ticket. Please try again.');
@@ -233,11 +238,29 @@ export default function GetTicket() {
         return (
           <div style={styles.ticketSection}>
             {/* ── Confirmation banner ── */}
-            <div style={styles.confirmBanner}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎉</div>
-              <h2 style={styles.confirmTitle}>Ticket Request Submitted!</h2>
-              <p style={styles.confirmSub}>Your request is pending admin approval. Bookmark the link below to check your status.</p>
-            </div>
+            {ticket.status === 'approved' ? (
+              <div style={{ ...styles.confirmBanner, background: 'linear-gradient(135deg, #065F46, #047857)' }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎉</div>
+                <h2 style={styles.confirmTitle}>Your Ticket is Ready!</h2>
+                <p style={styles.confirmSub}>
+                  {ticket.approved_by === 'auto'
+                    ? 'Your phone number was pre-approved — your ticket is instantly verified!'
+                    : 'Your ticket has been approved and is ready to use.'}
+                </p>
+              </div>
+            ) : ticket.existing ? (
+              <div style={{ ...styles.confirmBanner, background: 'linear-gradient(135deg, #1E40AF, #1D4ED8)' }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>ℹ️</div>
+                <h2 style={styles.confirmTitle}>You Already Have a Ticket</h2>
+                <p style={styles.confirmSub}>A ticket for this phone number already exists. Here are your ticket details.</p>
+              </div>
+            ) : (
+              <div style={styles.confirmBanner}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎉</div>
+                <h2 style={styles.confirmTitle}>Ticket Request Submitted!</h2>
+                <p style={styles.confirmSub}>Your request is pending admin approval. Bookmark the link below to check your status.</p>
+              </div>
+            )}
 
             {/* ── Selfie photo ── */}
             {selfiePreview && (
@@ -255,8 +278,12 @@ export default function GetTicket() {
                 </a>
                 <button onClick={copyTicketLink} style={styles.copyBtn} title="Copy link">📋</button>
               </div>
-              <span style={{ ...styles.statusBadge, ...styles.statusPending, display: 'inline-block', marginTop: '10px' }}>
-                ⏳ Pending Admin Approval
+              <span style={{
+                ...styles.statusBadge,
+                ...(ticket.status === 'approved' ? styles.statusApproved : styles.statusPending),
+                display: 'inline-block', marginTop: '10px',
+              }}>
+                {ticket.status === 'approved' ? '✓ Verified' : '⏳ Pending Admin Approval'}
               </span>
               <button onClick={shareTicketLink} style={styles.whatsappShareBtn}>
                 💬 Share my ticket link on WhatsApp

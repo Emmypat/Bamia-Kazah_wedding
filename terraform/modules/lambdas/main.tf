@@ -86,7 +86,9 @@ resource "aws_iam_role_policy" "lambda_custom" {
           "${var.photos_table_arn}/index/*",
           var.couple_faces_table_arn,
           var.tickets_table_arn,
-          "${var.tickets_table_arn}/index/*"
+          "${var.tickets_table_arn}/index/*",
+          var.preapproved_table_arn,
+          "${var.preapproved_table_arn}/index/*"
         ]
       },
       # Rekognition: face indexing and searching
@@ -373,8 +375,9 @@ resource "aws_lambda_function" "tickets_handler" {
 
   environment {
     variables = {
-      TICKETS_TABLE = var.tickets_table_name
-      PHOTOS_BUCKET = var.photos_upload_bucket_name
+      TICKETS_TABLE     = var.tickets_table_name
+      PHOTOS_BUCKET     = var.photos_upload_bucket_name
+      PREAPPROVED_TABLE = var.preapproved_table_name
     }
   }
 

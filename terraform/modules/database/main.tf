@@ -186,6 +186,36 @@ resource "aws_dynamodb_table" "tickets" {
   }
 }
 
+# ── Pre-approved Guests Table ─────────────────────────────────
+# Stores phone numbers pre-approved by the admin before they register.
+# When a guest submits a ticket, if their phone is in this table
+# (and not yet used), the ticket is auto-approved instantly.
+# PK: id (UUID) — phone is not the PK so the same phone can be
+# added again if needed (e.g. after being marked used).
+resource "aws_dynamodb_table" "preapproved_guests" {
+  name         = "${var.name_prefix}-preapproved-guests"
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  tags = {
+    Name = "Pre-approved guests"
+  }
+}
+
 # ── Couple Faces Table ────────────────────────────────────────
 # Stores the registered face IDs of the wedding couple.
 # When a photo is processed, we check if any of these faceIds

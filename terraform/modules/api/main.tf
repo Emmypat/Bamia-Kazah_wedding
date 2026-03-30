@@ -366,3 +366,99 @@ resource "aws_lambda_permission" "api_my_ticket" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/my-ticket"
 }
+
+# ── Route: GET /tickets/preapproved ───────────────────────────
+resource "aws_apigatewayv2_integration" "tickets_preapproved_list" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_preapproved_list" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /tickets/preapproved"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_preapproved_list.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: POST /tickets/preapprove ───────────────────────────
+resource "aws_apigatewayv2_integration" "tickets_preapprove_add" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_preapprove_add" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /tickets/preapprove"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_preapprove_add.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: DELETE /tickets/preapprove/{id} ────────────────────
+resource "aws_apigatewayv2_integration" "tickets_preapprove_delete" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_preapprove_delete" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "DELETE /tickets/preapprove/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_preapprove_delete.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /tickets/export ────────────────────────────────
+resource "aws_apigatewayv2_integration" "tickets_export" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_export" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /tickets/export"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_export.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: POST /tickets/issue ────────────────────────────────
+resource "aws_apigatewayv2_integration" "tickets_issue" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_issue" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /tickets/issue"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_issue.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: PUT /tickets/default-image ────────────────────────
+resource "aws_apigatewayv2_integration" "tickets_default_image" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.tickets_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+resource "aws_apigatewayv2_route" "tickets_default_image" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "PUT /tickets/default-image"
+  target             = "integrations/${aws_apigatewayv2_integration.tickets_default_image.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}

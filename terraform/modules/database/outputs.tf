@@ -28,3 +28,9 @@ output "tickets_table_name" {
 output "tickets_table_arn" {
   value = aws_dynamodb_table.tickets.arn
 }
+output "preapproved_guests_table_name" {
+  value = aws_dynamodb_table.preapproved_guests.name
+}
+output "preapproved_guests_table_arn" {
+  value = aws_dynamodb_table.preapproved_guests.arn
+}
