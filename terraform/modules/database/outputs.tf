@@ -34,3 +34,15 @@ output "preapproved_guests_table_name" {
 output "preapproved_guests_table_arn" {
   value = aws_dynamodb_table.preapproved_guests.arn
 }
+output "coordinators_table_name" {
+  value = aws_dynamodb_table.coordinators.name
+}
+output "coordinators_table_arn" {
+  value = aws_dynamodb_table.coordinators.arn
+}
+output "quota_enhancements_table_name" {
+  value = aws_dynamodb_table.quota_enhancements.name
+}
+output "quota_enhancements_table_arn" {
+  value = aws_dynamodb_table.quota_enhancements.arn
+}

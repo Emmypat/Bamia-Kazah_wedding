@@ -139,3 +139,17 @@ resource "aws_cognito_user_group" "admins" {
   description  = "Wedding admin users (couple, photographer)"
   precedence   = 1 # Lower number = higher priority if user is in multiple groups
 }
+
+resource "aws_cognito_user_group" "superadmins" {
+  name         = "superadmins"
+  user_pool_id = aws_cognito_user_pool.guests.id
+  description  = "Super admins with full platform access"
+  precedence   = 0
+}
+
+resource "aws_cognito_user_group" "coordinators" {
+  name         = "coordinators"
+  user_pool_id = aws_cognito_user_pool.guests.id
+  description  = "Event coordinators / registrars who can issue tickets"
+  precedence   = 5
+}

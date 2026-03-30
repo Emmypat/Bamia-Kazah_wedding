@@ -11,8 +11,11 @@ import Gallery from './pages/Gallery';
 import GetTicket from './pages/GetTicket';
 import MyTicket from './pages/MyTicket';
 import AdminTickets from './pages/AdminTickets';
+import AdminCoordinators from './pages/AdminCoordinators';
 import TicketView from './pages/TicketView';
 import ScanTicket from './pages/ScanTicket';
+import CoordinatorLogin from './pages/CoordinatorLogin';
+import CoordinatorDashboard from './pages/CoordinatorDashboard';
 import { isAuthenticated, getCurrentUser, getAccessToken } from './utils/auth';
 import './App.css';
 
@@ -59,7 +62,8 @@ function AdminRoute({ children }) {
       const user = await getCurrentUser();
       if (!user) { setChecked(true); return; }
       const token = await getAccessToken();
-      const isAdmin = token ? decodeJwtGroups(token).includes('admins') : false;
+      const groups = token ? decodeJwtGroups(token) : [];
+      const isAdmin = groups.includes('admins') || groups.includes('superadmins');
       setAllowed(isAdmin);
       setChecked(true);
     })();
@@ -67,6 +71,28 @@ function AdminRoute({ children }) {
 
   if (!checked) return <div style={{ minHeight: '100vh', background: '#f9f7f4' }} />;
   return allowed ? children : <Navigate to="/admin-login" replace />;
+}
+
+/**
+ * CoordinatorRoute: redirects to /coordinator/login if not a coordinator.
+ */
+function CoordinatorRoute({ children }) {
+  const [checked, setChecked] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const user = await getCurrentUser();
+      if (!user) { setChecked(true); return; }
+      const token = await getAccessToken();
+      const groups = token ? decodeJwtGroups(token) : [];
+      setAllowed(groups.includes('coordinators'));
+      setChecked(true);
+    })();
+  }, []);
+
+  if (!checked) return <div style={{ minHeight: '100vh', background: '#f9f7f4' }} />;
+  return allowed ? children : <Navigate to="/coordinator/login" replace />;
 }
 
 export default function App() {
@@ -80,6 +106,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="/coordinator/login" element={<CoordinatorLogin />} />
           <Route path="/ticket/:ticketId" element={<TicketView />} />
           <Route path="/my-ticket" element={<MyTicket />} />
           <Route path="/get-ticket" element={
@@ -97,12 +124,20 @@ export default function App() {
             <ProtectedRoute><Gallery /></ProtectedRoute>
           } />
 
+          {/* Coordinator routes */}
+          <Route path="/coordinator/dashboard" element={
+            <CoordinatorRoute><CoordinatorDashboard /></CoordinatorRoute>
+          } />
+
           {/* Admin-only routes */}
           <Route path="/admin/tickets" element={
             <AdminRoute><AdminTickets /></AdminRoute>
           } />
           <Route path="/admin/scan" element={
             <AdminRoute><ScanTicket /></AdminRoute>
+          } />
+          <Route path="/admin/coordinators" element={
+            <AdminRoute><AdminCoordinators /></AdminRoute>
           } />
 
           {/* Fallback */}

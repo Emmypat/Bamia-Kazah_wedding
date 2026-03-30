@@ -28,3 +28,9 @@ output "tickets_handler_invoke_arn" {
 output "tickets_handler_function_name" {
   value = aws_lambda_function.tickets_handler.function_name
 }
+output "coordinators_handler_invoke_arn" {
+  value = aws_lambda_function.coordinators_handler.invoke_arn
+}
+output "coordinators_handler_function_name" {
+  value = aws_lambda_function.coordinators_handler.function_name
+}

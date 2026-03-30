@@ -216,6 +216,71 @@ resource "aws_dynamodb_table" "preapproved_guests" {
   }
 }
 
+# ── Coordinators Table ────────────────────────────────────────
+# Event coordinators / registrars who can issue tickets.
+# PK: userId (Cognito sub)
+resource "aws_dynamodb_table" "coordinators" {
+  name         = "${var.name_prefix}-coordinators"
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key = "userId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  tags = {
+    Name = "Coordinators registry"
+  }
+}
+
+# ── Quota Enhancements Table ──────────────────────────────────
+# Audit log of every quota top-up granted to a coordinator.
+# PK: id (UUID), with a GSI on coordinatorId for per-coordinator history.
+resource "aws_dynamodb_table" "quota_enhancements" {
+  name         = "${var.name_prefix}-quota-enhancements"
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "coordinatorId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "coordinatorId-index"
+    hash_key        = "coordinatorId"
+    projection_type = "ALL"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  tags = {
+    Name = "Quota enhancements audit log"
+  }
+}
+
 # ── Couple Faces Table ────────────────────────────────────────
 # Stores the registered face IDs of the wedding couple.
 # When a photo is processed, we check if any of these faceIds

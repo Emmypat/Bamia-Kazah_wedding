@@ -106,6 +106,11 @@ module "lambdas" {
   tickets_table_arn       = module.database.tickets_table_arn
   preapproved_table_name  = module.database.preapproved_guests_table_name
   preapproved_table_arn   = module.database.preapproved_guests_table_arn
+  coordinators_table_name       = module.database.coordinators_table_name
+  coordinators_table_arn        = module.database.coordinators_table_arn
+  quota_enhancements_table_name = module.database.quota_enhancements_table_name
+  quota_enhancements_table_arn  = module.database.quota_enhancements_table_arn
+  site_url                      = var.domain_name != "" ? "https://${var.domain_name}" : ""
 
   # Rekognition
   rekognition_collection_id  = var.rekognition_collection_id
@@ -143,6 +148,9 @@ module "api" {
 
   tickets_handler_invoke_arn   = module.lambdas.tickets_handler_invoke_arn
   tickets_handler_function_name = module.lambdas.tickets_handler_function_name
+
+  coordinators_handler_invoke_arn   = module.lambdas.coordinators_handler_invoke_arn
+  coordinators_handler_function_name = module.lambdas.coordinators_handler_function_name
 
   # Cognito authorizer
   cognito_user_pool_endpoint  = module.auth.user_pool_endpoint

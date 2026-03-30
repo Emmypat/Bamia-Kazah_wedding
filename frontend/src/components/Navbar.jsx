@@ -15,6 +15,7 @@ function decodeJwtGroups(token) {
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCoordinator, setIsCoordinator] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,9 +26,12 @@ export default function Navbar() {
       setUser(u);
       if (u) {
         const token = await getAccessToken();
-        setIsAdmin(token ? decodeJwtGroups(token).includes('admins') : false);
+        const groups = token ? decodeJwtGroups(token) : [];
+        setIsAdmin(groups.includes('admins') || groups.includes('superadmins'));
+        setIsCoordinator(groups.includes('coordinators'));
       } else {
         setIsAdmin(false);
+        setIsCoordinator(false);
       }
     });
   }, [location]);
@@ -36,6 +40,7 @@ export default function Navbar() {
     await logout();
     setUser(null);
     setIsAdmin(false);
+    setIsCoordinator(false);
     navigate('/');
   }
 
@@ -49,7 +54,12 @@ export default function Navbar() {
 
         {/* Desktop */}
         <div className="nav-desktop">
-          {user ? (
+          {isCoordinator && !isAdmin ? (
+            <>
+              <Link to="/coordinator/dashboard" style={styles.link}>My Dashboard</Link>
+              <button onClick={handleLogout} style={styles.logoutBtn}>Sign Out</button>
+            </>
+          ) : user ? (
             <>
               <Link to="/upload" style={styles.link}>Upload</Link>
               <Link to="/search" style={styles.link}>Find My Photos</Link>
@@ -61,6 +71,7 @@ export default function Navbar() {
               {isAdmin && (
                 <>
                   <Link to="/admin/tickets" style={styles.adminBadge}>🎟️ Manage Tickets</Link>
+                  <Link to="/admin/coordinators" style={styles.adminBadge}>👥 Coordinators</Link>
                   <Link to="/admin/scan" style={styles.adminScanBadge}>📷 Scan Tickets</Link>
                 </>
               )}
@@ -87,7 +98,12 @@ export default function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div style={styles.mobileMenu}>
-          {user ? (
+          {isCoordinator && !isAdmin ? (
+            <>
+              <Link to="/coordinator/dashboard" style={styles.mobileLink}>My Dashboard</Link>
+              <button onClick={handleLogout} style={styles.mobileLogout}>Sign Out</button>
+            </>
+          ) : user ? (
             <>
               <Link to="/upload" style={styles.mobileLink}>Upload</Link>
               <Link to="/search" style={styles.mobileLink}>Find My Photos</Link>
@@ -97,6 +113,7 @@ export default function Navbar() {
               {isAdmin && (
                 <>
                   <Link to="/admin/tickets" style={{ ...styles.mobileLink, color: '#7A1428', fontWeight: 700, background: '#FDF0F3', borderLeft: '3px solid #7A1428' }}>🎟️ Manage Tickets</Link>
+                  <Link to="/admin/coordinators" style={{ ...styles.mobileLink, color: '#7A1428', fontWeight: 700, background: '#FDF0F3', borderLeft: '3px solid #7A1428' }}>👥 Coordinators</Link>
                   <Link to="/admin/scan" style={{ ...styles.mobileLink, color: '#5C0F1E', fontWeight: 700, background: '#F7EDE0', borderLeft: '3px solid #C4956A' }}>📷 Scan Tickets</Link>
                 </>
               )}

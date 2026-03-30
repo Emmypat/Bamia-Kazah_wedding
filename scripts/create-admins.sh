@@ -11,7 +11,7 @@
 
 set -e
 
-POOL_ID="eu-west-1_n4ZjXMOfq"
+POOL_ID="eu-west-1_vGQmvqD9f"
 TEMP_PASS="Admin@1234"
 REGION="eu-west-1"
 ADMINS=(
@@ -52,6 +52,6 @@ done
 
 echo "Done! All admin accounts ready."
 echo ""
-echo "Login at: https://dil5ih5xgoo14.cloudfront.net/admin-login"
+echo "Login at: https://d3fgz6gxizt2sl.cloudfront.net/admin-login"
 echo "Temporary password: $TEMP_PASS"
 echo "Each admin must set a new password on first login."

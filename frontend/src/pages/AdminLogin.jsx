@@ -1,6 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login, logout, requestPasswordReset, confirmPasswordReset, confirmSignIn } from '../utils/auth';
+import { login, logout, requestPasswordReset, confirmPasswordReset, confirmSignIn, getAccessToken } from '../utils/auth';
+
+function decodeJwtGroups(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const groups = payload['cognito:groups'];
+    if (!groups) return [];
+    const str = Array.isArray(groups) ? groups.join(',') : String(groups).replace(/[\[\]]/g, '');
+    return str.split(',').map(g => g.trim()).filter(Boolean);
+  } catch { return []; }
+}
+
+async function redirectAfterLogin(navigate) {
+  const token = await getAccessToken();
+  const groups = token ? decodeJwtGroups(token) : [];
+  if (groups.includes('coordinators') && !groups.includes('admins') && !groups.includes('superadmins')) {
+    navigate('/coordinator/dashboard');
+  } else {
+    navigate('/gallery');
+  }
+}
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -22,7 +42,7 @@ export default function AdminLogin() {
       if (result?.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
         setView('newpassword');
       } else {
-        navigate('/gallery');
+        await redirectAfterLogin(navigate);
       }
     } catch (err) {
       setError(err.message || 'Login failed. Check your credentials.');
@@ -42,7 +62,7 @@ export default function AdminLogin() {
     setLoading(true); setError('');
     try {
       await confirmSignIn({ challengeResponse: form.newPassword });
-      navigate('/gallery');
+      await redirectAfterLogin(navigate);
     } catch (err) {
       setError(err.message || 'Failed to set new password. Please try again.');
     } finally { setLoading(false); }
@@ -99,7 +119,7 @@ export default function AdminLogin() {
           <form onSubmit={handleLogin}>
             <div className="form-group">
               <label>Email</label>
-              <input type="email" placeholder="admin@example.com" value={form.email}
+              <input type="email" placeholder="Bamai Patrick" value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })} required />
             </div>
             <div className="form-group">
@@ -140,7 +160,7 @@ export default function AdminLogin() {
           <form onSubmit={handleForgot}>
             <div className="form-group">
               <label>Admin Email</label>
-              <input type="email" placeholder="admin@example.com" value={form.email}
+              <input type="email" placeholder="Bamai Patrick" value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })} required />
             </div>
             <button type="submit" className="btn btn-primary" style={styles.fullBtn} disabled={loading}>

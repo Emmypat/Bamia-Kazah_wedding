@@ -505,8 +505,9 @@ function TicketCard({ ticket, onUpdate, onDelete, updating }) {
       )}`
     : null;
 
-  const isAutoApproved = ticket.approved_by === 'auto';
-  const isAdminIssued  = ticket.approved_by === 'admin_issued';
+  const isAutoApproved  = ticket.approved_by === 'auto';
+  const isAdminIssued   = ticket.approved_by === 'admin_issued';
+  const isCoordIssued   = ticket.issuedByRole === 'coordinator';
 
   return (
     <div style={c.card}>
@@ -530,8 +531,13 @@ function TicketCard({ ticket, onUpdate, onDelete, updating }) {
           {isAutoApproved && (
             <span style={{ ...c.badge, background: '#EDE9FE', color: '#5B21B6', border: '1px solid #C4B5FD' }}>⚡ Auto</span>
           )}
-          {isAdminIssued && (
+          {isAdminIssued && !isCoordIssued && (
             <span style={{ ...c.badge, background: '#DBEAFE', color: '#1E40AF', border: '1px solid #BFDBFE' }}>🎟️ Issued</span>
+          )}
+          {isCoordIssued && (
+            <span style={{ ...c.badge, background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }} title={ticket.issuedByEmail || ''}>
+              👤 {ticket.issuedByName || 'Coordinator'}
+            </span>
           )}
           {ticket.checkedIn && (
             <span style={{ ...c.badge, background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7' }}>✅ Checked in</span>

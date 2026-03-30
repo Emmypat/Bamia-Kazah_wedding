@@ -303,6 +303,108 @@ export async function setDefaultTicketImage(imageFile) {
   return response.data;
 }
 
+// ── Coordinator API functions ─────────────────────────────────
+
+/**
+ * Create a new coordinator account (admin only).
+ */
+export async function createCoordinator({ name, email, phone, initialQuota }) {
+  const headers = await getAuthHeaders();
+  const response = await axios.post(
+    `${BASE_URL}/coordinators`,
+    { name, email, phone, initialQuota },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * List all coordinators (admin only).
+ */
+export async function getCoordinators() {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/coordinators`, { headers });
+  return response.data;
+}
+
+/**
+ * Update coordinator (admin only) — name/phone/isActive.
+ */
+export async function updateCoordinator(id, fields) {
+  const headers = await getAuthHeaders();
+  const response = await axios.put(
+    `${BASE_URL}/coordinators/${id}`,
+    fields,
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * Soft-delete (deactivate) a coordinator (admin only).
+ */
+export async function deactivateCoordinator(id) {
+  const headers = await getAuthHeaders();
+  const response = await axios.delete(`${BASE_URL}/coordinators/${id}`, { headers });
+  return response.data;
+}
+
+/**
+ * Top up a coordinator's ticket quota (admin only).
+ * @param {string} id — coordinator userId
+ * @param {number} add — number of tickets to add
+ * @param {string} reason — reason for enhancement
+ */
+export async function enhanceCoordinatorQuota(id, add, reason) {
+  const headers = await getAuthHeaders();
+  const response = await axios.post(
+    `${BASE_URL}/coordinators/${id}/enhance`,
+    { add, reason },
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * Get tickets issued by a specific coordinator (admin only).
+ */
+export async function getCoordinatorTickets(id) {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/coordinators/${id}/tickets`, { headers });
+  return response.data;
+}
+
+/**
+ * Get quota enhancement history for a coordinator (admin only).
+ */
+export async function getCoordinatorEnhancements(id) {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/coordinators/${id}/enhancements`, { headers });
+  return response.data;
+}
+
+/**
+ * Reset a coordinator's password (admin only).
+ */
+export async function resetCoordinatorPassword(id) {
+  const headers = await getAuthHeaders();
+  const response = await axios.post(
+    `${BASE_URL}/coordinators/${id}/reset-password`,
+    {},
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+}
+
+/**
+ * Get the logged-in coordinator's own quota (coordinator only).
+ */
+export async function getMyQuota() {
+  const headers = await getAuthHeaders();
+  const response = await axios.get(`${BASE_URL}/coordinator/quota`, { headers });
+  return response.data;
+}
+
 /**
  * Convert a File object to base64 string.
  */

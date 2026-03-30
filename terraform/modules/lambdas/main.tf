@@ -88,7 +88,11 @@ resource "aws_iam_role_policy" "lambda_custom" {
           var.tickets_table_arn,
           "${var.tickets_table_arn}/index/*",
           var.preapproved_table_arn,
-          "${var.preapproved_table_arn}/index/*"
+          "${var.preapproved_table_arn}/index/*",
+          var.coordinators_table_arn,
+          "${var.coordinators_table_arn}/index/*",
+          var.quota_enhancements_table_arn,
+          "${var.quota_enhancements_table_arn}/index/*"
         ]
       },
       # Rekognition: face indexing and searching
@@ -119,11 +123,20 @@ resource "aws_iam_role_policy" "lambda_custom" {
         Action = ["sns:Publish"]
         Resource = var.sns_topic_arn
       },
-      # Cognito: reset guest passwords (for legacy user migration)
+      # Cognito: user management for coordinators + guest password reset
       {
-        Sid    = "CognitoSetPassword"
+        Sid    = "CognitoUserManagement"
         Effect = "Allow"
-        Action = ["cognito-idp:AdminSetUserPassword"]
+        Action = [
+          "cognito-idp:AdminSetUserPassword",
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:AdminDisableUser",
+          "cognito-idp:AdminEnableUser",
+          "cognito-idp:AdminGetUser",
+          "cognito-idp:ListUsersInGroup"
+        ]
         Resource = "arn:aws:cognito-idp:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userpool/${var.cognito_user_pool_id}"
       }
     ]
@@ -375,13 +388,55 @@ resource "aws_lambda_function" "tickets_handler" {
 
   environment {
     variables = {
-      TICKETS_TABLE     = var.tickets_table_name
-      PHOTOS_BUCKET     = var.photos_upload_bucket_name
-      PREAPPROVED_TABLE = var.preapproved_table_name
+      TICKETS_TABLE              = var.tickets_table_name
+      PHOTOS_BUCKET              = var.photos_upload_bucket_name
+      PREAPPROVED_TABLE          = var.preapproved_table_name
+      COORDINATOR_TABLE          = var.coordinators_table_name
+      QUOTA_ENHANCEMENTS_TABLE   = var.quota_enhancements_table_name
+      COGNITO_USER_POOL_ID       = var.cognito_user_pool_id
+      FROM_EMAIL                 = var.from_email
+      SITE_URL                   = var.site_url
     }
   }
 
   tags = { Name = "Tickets Handler" }
+}
+
+# ── Lambda 7: Coordinators Handler ────────────────────────────
+data "archive_file" "coordinators_handler" {
+  type        = "zip"
+  source_dir  = "${path.root}/../lambdas/coordinators_handler"
+  output_path = "${path.module}/../../.build/coordinators_handler.zip"
+}
+
+resource "aws_lambda_function" "coordinators_handler" {
+  function_name    = "${var.name_prefix}-coordinators-handler"
+  filename         = data.archive_file.coordinators_handler.output_path
+  source_code_hash = data.archive_file.coordinators_handler.output_base64sha256
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "handler.lambda_handler"
+  runtime          = "python3.11"
+  memory_size      = 256
+  timeout          = 30
+  reserved_concurrent_executions = var.max_concurrency
+
+  environment {
+    variables = {
+      COORDINATOR_TABLE        = var.coordinators_table_name
+      QUOTA_ENHANCEMENTS_TABLE = var.quota_enhancements_table_name
+      TICKETS_TABLE            = var.tickets_table_name
+      COGNITO_USER_POOL_ID     = var.cognito_user_pool_id
+      FROM_EMAIL               = var.from_email
+      SITE_URL                 = var.site_url
+    }
+  }
+
+  tags = { Name = "Coordinators Handler" }
+}
+
+resource "aws_cloudwatch_log_group" "coordinators_handler" {
+  name              = "/aws/lambda/${aws_lambda_function.coordinators_handler.function_name}"
+  retention_in_days = 14
 }
 
 resource "aws_cloudwatch_log_group" "tickets_handler" {

@@ -462,3 +462,109 @@ resource "aws_apigatewayv2_route" "tickets_default_image" {
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
+
+# ── Coordinators Handler integration (shared across all /coordinators routes) ──
+resource "aws_apigatewayv2_integration" "coordinators" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = local.integration_type
+  integration_uri        = var.coordinators_handler_invoke_arn
+  payload_format_version = local.payload_format
+}
+
+# ── Route: POST /coordinators (create coordinator — admin) ────
+resource "aws_apigatewayv2_route" "coordinators_create" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /coordinators"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /coordinators (list coordinators — admin) ─────
+resource "aws_apigatewayv2_route" "coordinators_list" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /coordinators"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: PUT /coordinators/{id} (update — admin) ───────────
+resource "aws_apigatewayv2_route" "coordinators_update" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "PUT /coordinators/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: DELETE /coordinators/{id} (soft-delete — admin) ───
+resource "aws_apigatewayv2_route" "coordinators_delete" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "DELETE /coordinators/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: POST /coordinators/{id}/enhance (quota top-up) ────
+resource "aws_apigatewayv2_route" "coordinators_enhance" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /coordinators/{id}/enhance"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /coordinators/{id}/tickets ─────────────────────
+resource "aws_apigatewayv2_route" "coordinators_tickets" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /coordinators/{id}/tickets"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /coordinators/{id}/enhancements ────────────────
+resource "aws_apigatewayv2_route" "coordinators_enhancements" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /coordinators/{id}/enhancements"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: POST /coordinators/{id}/reset-password ─────────────
+resource "aws_apigatewayv2_route" "coordinators_reset_password" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /coordinators/{id}/reset-password"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ── Route: GET /coordinator/quota (coordinator's own quota) ───
+resource "aws_apigatewayv2_route" "coordinator_quota" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /coordinator/quota"
+  target             = "integrations/${aws_apigatewayv2_integration.coordinators.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# Lambda permissions for all coordinator routes
+resource "aws_lambda_permission" "api_coordinators" {
+  statement_id  = "AllowAPIGWInvokeCoordinators"
+  action        = "lambda:InvokeFunction"
+  function_name = var.coordinators_handler_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/coordinators*"
+}
+
+resource "aws_lambda_permission" "api_coordinator_quota" {
+  statement_id  = "AllowAPIGWInvokeCoordinatorQuota"
+  action        = "lambda:InvokeFunction"
+  function_name = var.coordinators_handler_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*/coordinator/quota"
+}

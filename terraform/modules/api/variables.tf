@@ -11,3 +11,5 @@ variable "cognito_user_pool_endpoint" { type = string }
 variable "cognito_user_pool_id" { type = string }
 variable "cognito_user_pool_client_id" { type = string }
 variable "aws_region" { type = string }
+variable "coordinators_handler_invoke_arn" { type = string }
+variable "coordinators_handler_function_name" { type = string }

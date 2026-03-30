@@ -2,19 +2,23 @@
 tickets_handler — Lambda for attendance ticket management.
 
 Routes:
-  POST   /tickets                — Guest creates a ticket (auth required)
-  GET    /tickets                — Admin lists all tickets (admin only)
-  PUT    /tickets/{id}           — Admin approves/rejects/revokes/checkin (admin only)
-  GET    /tickets/{id}           — Guest views their ticket (auth required)
-  DELETE /tickets/{id}           — Admin deletes a rejected ticket (admin only)
-  GET    /tickets/{id}/view      — Public view of a ticket (no auth)
-  GET    /my-ticket              — Public phone lookup of own ticket (no auth)
-  GET    /tickets/preapproved    — Admin lists pre-approved phones (admin only)
-  POST   /tickets/preapprove     — Admin adds pre-approved phone(s) (admin only)
-  DELETE /tickets/preapprove/{id} — Admin removes a pre-approved record (admin only)
-  GET    /tickets/export         — Admin exports approved tickets as CSV (admin only)
-  POST   /tickets/issue          — Admin issues a ticket directly (admin only)
-  PUT    /tickets/default-image  — Admin sets the default ticket image (admin only)
+  POST   /tickets                   — Guest creates a ticket (auth required)
+  GET    /tickets                   — Admin lists all tickets (admin only)
+  PUT    /tickets/{id}              — Admin approves/rejects/revokes/checkin (admin only)
+  GET    /tickets/{id}              — Guest views their ticket (auth required)
+  DELETE /tickets/{id}              — Admin deletes a rejected ticket (admin only)
+  GET    /tickets/{id}/view         — Public view of a ticket (no auth)
+  GET    /my-ticket                 — Public phone lookup of own ticket (no auth)
+  GET    /tickets/preapproved       — Admin lists pre-approved phones (admin only)
+  POST   /tickets/preapprove        — Admin adds pre-approved phone(s) (admin only)
+  DELETE /tickets/preapprove/{id}   — Admin removes a pre-approved record (admin only)
+  GET    /tickets/export            — Admin exports tickets as CSV (admin only)
+  POST   /tickets/issue             — Admin or Coordinator issues a ticket directly
+  PUT    /tickets/default-image     — Admin sets the default ticket image (admin only)
+  POST   /coordinators              — Admin creates a Coordinator account (admin only)
+  GET    /coordinators              — Admin lists all Coordinators (admin only)
+  GET    /coordinators/me           — Coordinator fetches their own quota (coordinator)
+  PUT    /coordinators/{id}/quota   — Admin updates a Coordinator's quota (admin only)
 """
 
 import json
@@ -29,12 +33,15 @@ import io
 import csv
 from datetime import datetime
 
-s3 = boto3.client('s3')
-dynamodb = boto3.resource('dynamodb')
+s3        = boto3.client('s3')
+cognito   = boto3.client('cognito-idp')
+dynamodb  = boto3.resource('dynamodb')
 
-TICKETS_TABLE    = os.environ['TICKETS_TABLE']
-PHOTOS_BUCKET    = os.environ['PHOTOS_BUCKET']
-PREAPPROVED_TABLE = os.environ.get('PREAPPROVED_TABLE', '')
+TICKETS_TABLE       = os.environ['TICKETS_TABLE']
+PHOTOS_BUCKET       = os.environ['PHOTOS_BUCKET']
+PREAPPROVED_TABLE   = os.environ.get('PREAPPROVED_TABLE', '')
+COORDINATOR_TABLE   = os.environ.get('COORDINATOR_TABLE', '')
+COGNITO_USER_POOL_ID = os.environ.get('COGNITO_USER_POOL_ID', '')
 
 DEFAULT_IMAGE_KEY = 'tickets/default-wedding-image.jpg'
 
@@ -78,14 +85,25 @@ def get_user_claims(event):
              .get('jwt', {})
              .get('claims', {})
     )
-    user_id = claims.get('sub', '')
+    user_id  = claims.get('sub', '')
+    username = claims.get('username', '') or claims.get('email', '')
     groups_raw = claims.get('cognito:groups', '')
     if isinstance(groups_raw, list):
         groups = groups_raw
     else:
         groups = [g.strip() for g in str(groups_raw).strip('[]').split(',') if g.strip()]
-    is_admin = 'admins' in groups
-    return user_id, is_admin
+    is_admin       = 'admins' in groups or 'superadmins' in groups
+    is_coordinator = 'coordinators' in groups
+    return user_id, is_admin, is_coordinator
+
+
+def get_issuer_email(event):
+    """Extract issuer's email/username from JWT claims."""
+    claims = (event.get('requestContext', {})
+                   .get('authorizer', {})
+                   .get('jwt', {})
+                   .get('claims', {}))
+    return claims.get('username', '') or claims.get('email', '')
 
 
 def normalize_phone(phone):
@@ -217,7 +235,7 @@ def create_ticket(event):
                 safe['selfieUrl'] = None
         return respond(200, {'existing': True, 'ticket': safe})
 
-    user_id, _ = get_user_claims(event)
+    user_id, _, __ = get_user_claims(event)
 
     table = dynamodb.Table(TICKETS_TABLE)
     ticket_id = generate_ticket_id(table)
@@ -271,7 +289,7 @@ def create_ticket(event):
 
 def list_tickets(event):
     """GET /tickets — admin lists all tickets with selfie presigned URLs."""
-    _, is_admin = get_user_claims(event)
+    _, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
 
@@ -297,7 +315,7 @@ def list_tickets(event):
 
 def update_ticket(event, ticket_id):
     """PUT /tickets/{id} — admin approves/rejects/revokes a ticket, or checks in a guest."""
-    user_id, is_admin = get_user_claims(event)
+    user_id, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
 
@@ -359,7 +377,7 @@ def update_ticket(event, ticket_id):
 
 def get_ticket(event, ticket_id):
     """GET /tickets/{id} — guest or admin views a single ticket."""
-    user_id, is_admin = get_user_claims(event)
+    user_id, is_admin, __ = get_user_claims(event)
 
     table = dynamodb.Table(TICKETS_TABLE)
     resp = table.get_item(Key={'ticketId': ticket_id})
@@ -461,7 +479,7 @@ def get_ticket_by_phone(event):
 
 def delete_ticket(event, ticket_id):
     """DELETE /tickets/{id} — admin only, rejected tickets only."""
-    _, is_admin = get_user_claims(event)
+    _, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
 
@@ -489,7 +507,7 @@ def delete_ticket(event, ticket_id):
 
 def list_preapproved(event):
     """GET /tickets/preapproved — admin lists pre-approved phone records."""
-    _, is_admin = get_user_claims(event)
+    _, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
     if not PREAPPROVED_TABLE:
@@ -504,7 +522,7 @@ def list_preapproved(event):
 
 def add_preapproved(event):
     """POST /tickets/preapprove — admin adds one or more pre-approved phones."""
-    _, is_admin = get_user_claims(event)
+    _, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
     if not PREAPPROVED_TABLE:
@@ -547,7 +565,7 @@ def add_preapproved(event):
 
 def remove_preapproved(event, preapprove_id):
     """DELETE /tickets/preapprove/{id} — admin removes a pre-approved record."""
-    _, is_admin = get_user_claims(event)
+    _, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
     if not PREAPPROVED_TABLE:
@@ -566,7 +584,7 @@ def remove_preapproved(event, preapprove_id):
 
 def export_tickets_csv(event):
     """GET /tickets/export — admin downloads all approved tickets as CSV."""
-    _, is_admin = get_user_claims(event)
+    _, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
 
@@ -580,6 +598,7 @@ def export_tickets_csv(event):
     writer.writerow([
         'Ticket ID', 'Guest Name', 'Phone', 'Status',
         'Created At', 'Approved At', 'Approved By',
+        'Issued By Role', 'Issued By Email', 'Issued By Name',
         'Checked In', 'Checked In At',
     ])
     for t in tickets:
@@ -591,6 +610,9 @@ def export_tickets_csv(event):
             t.get('createdAt', ''),
             t.get('approved_at', ''),
             t.get('approved_by', ''),
+            t.get('issuedByRole', ''),
+            t.get('issuedByEmail', ''),
+            t.get('issuedByName', ''),
             'Yes' if t.get('checkedIn') else 'No',
             t.get('checkedInAt', ''),
         ])
@@ -601,10 +623,28 @@ def export_tickets_csv(event):
 # ── Admin-issued tickets ────────────────────────────────────────
 
 def issue_ticket(event):
-    """POST /tickets/issue — admin creates a pre-approved ticket on behalf of a guest."""
-    _, is_admin = get_user_claims(event)
-    if not is_admin:
-        return respond(403, {'error': 'Admin access required'})
+    """POST /tickets/issue — admin or coordinator issues a ticket on behalf of a guest."""
+    issuer_id, is_admin, is_coordinator = get_user_claims(event)
+    if not is_admin and not is_coordinator:
+        return respond(403, {'error': 'Admin or Coordinator access required'})
+
+    # ── Coordinator quota check ──────────────────────────────────
+    if is_coordinator and not is_admin:
+        if not COORDINATOR_TABLE:
+            return respond(500, {'error': 'Coordinator table not configured'})
+        coord_table = dynamodb.Table(COORDINATOR_TABLE)
+        coord = coord_table.get_item(Key={'userId': issuer_id}).get('Item')
+        if not coord or not coord.get('active', True):
+            return respond(403, {'error': 'Coordinator account not found or inactive.'})
+        quota_used  = int(coord.get('quotaUsed', 0))
+        quota_total = int(coord.get('quotaTotal', 0))
+        if quota_used >= quota_total:
+            return respond(403, {
+                'error': 'Ticket quota exhausted. Contact an admin to increase your limit.',
+                'quotaExhausted': True,
+                'quotaUsed': quota_used,
+                'quotaTotal': quota_total,
+            })
 
     try:
         body = json.loads(event.get('body') or '{}')
@@ -645,27 +685,60 @@ def issue_ticket(event):
     else:
         selfie_key = DEFAULT_IMAGE_KEY
 
+    issuer_email = get_issuer_email(event)
+    issued_role  = 'coordinator' if (is_coordinator and not is_admin) else 'superadmin'
+
+    # Look up coordinator name (if coordinator)
+    issuer_name = issuer_email
+    if is_coordinator and not is_admin and COORDINATOR_TABLE:
+        try:
+            coord = dynamodb.Table(COORDINATOR_TABLE).get_item(Key={'userId': issuer_id}).get('Item')
+            if coord:
+                issuer_name = coord.get('name', issuer_email)
+        except Exception:
+            pass
+
     item = {
-        'ticketId':    ticket_id,
-        'guestName':   guest_name,
-        'phone':       phone,
-        'selfieKey':   selfie_key,
-        'status':      'approved',
-        'createdAt':   now,
-        'userId':      '',
-        'approved_by': 'admin_issued',
-        'approved_at': now,
+        'ticketId':       ticket_id,
+        'guestName':      guest_name,
+        'phone':          phone,
+        'selfieKey':      selfie_key,
+        'status':         'approved',
+        'createdAt':      now,
+        'userId':         '',
+        'approved_by':    'admin_issued',
+        'approved_at':    now,
+        'issuedByRole':   issued_role,
+        'issuedByEmail':  issuer_email,
+        'issuedByName':   issuer_name,
     }
+    if is_coordinator and not is_admin:
+        item['coordinatorId'] = issuer_id
+
     table.put_item(Item=item)
 
+    # ── Increment coordinator quota usage ────────────────────────────
+    if is_coordinator and not is_admin and COORDINATOR_TABLE:
+        try:
+            dynamodb.Table(COORDINATOR_TABLE).update_item(
+                Key={'userId': issuer_id},
+                UpdateExpression='SET quotaUsed = quotaUsed + :one',
+                ExpressionAttributeValues={':one': 1},
+            )
+        except Exception as e:
+            print(f'[WARN] Failed to increment coordinator quota: {e}')
+
     return respond(200, {
-        'ticketId':    ticket_id,
-        'guestName':   guest_name,
-        'phone':       phone,
-        'status':      'approved',
-        'createdAt':   now,
-        'approved_by': 'admin_issued',
-        'approved_at': now,
+        'ticketId':      ticket_id,
+        'guestName':     guest_name,
+        'phone':         phone,
+        'status':        'approved',
+        'createdAt':     now,
+        'approved_by':   'admin_issued',
+        'approved_at':   now,
+        'issuedByRole':  issued_role,
+        'issuedByEmail': issuer_email,
+        'issuedByName':  issuer_name,
     })
 
 
@@ -673,7 +746,7 @@ def issue_ticket(event):
 
 def set_default_image(event):
     """PUT /tickets/default-image — admin uploads the default ticket selfie image."""
-    _, is_admin = get_user_claims(event)
+    _, is_admin, __ = get_user_claims(event)
     if not is_admin:
         return respond(403, {'error': 'Admin access required'})
 
