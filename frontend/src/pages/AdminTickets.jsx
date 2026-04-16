@@ -22,7 +22,7 @@ export default function AdminTickets() {
     try {
       const [ticketsData, preData] = await Promise.all([
         getTickets(),
-        getPreapprovedPhones().catch(() => ({ records: [] })),
+        getPreapprovedPhones(),
       ]);
       setTickets(ticketsData.tickets || []);
       setPreapproved(preData.records || []);
@@ -187,7 +187,11 @@ function PreapprovedTab({ records, setRecords }) {
       const data = await addPreapprovedPhones(phoneList, nameList);
       setRecords(prev => [...(data.added || []).map(r => ({ ...r, used: false })), ...prev]);
       setPhones(''); setNames('');
-      setMsg(`Added ${data.count} phone${data.count !== 1 ? 's' : ''}.`);
+      let msg = `Added ${data.count} phone${data.count !== 1 ? 's' : ''}.`;
+      if (data.auto_approved?.length > 0) {
+        msg += ` Auto-approved ${data.auto_approved.length} existing pending ticket${data.auto_approved.length !== 1 ? 's' : ''}.`;
+      }
+      setMsg(msg);
     } catch (err) {
       setMsg(err.response?.data?.error || 'Failed to add phones.');
     } finally { setSaving(false); }
@@ -214,7 +218,7 @@ function PreapprovedTab({ records, setRecords }) {
           When a guest with a pre-approved phone submits a ticket, it will be instantly approved — no manual review needed.
         </p>
         <form onSubmit={handleAdd}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '16px', marginBottom: '12px' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label>Phone Numbers (one per line or comma-separated)</label>
               <textarea
@@ -620,7 +624,7 @@ const s = {
   chip:        { fontSize: '12px', fontWeight: '600', padding: '4px 14px', borderRadius: '20px' },
   refreshBtn:  { background: 'none', border: '1px solid #EDE0D8', color: '#5C3D2E', padding: '8px 18px', borderRadius: '20px', cursor: 'pointer', fontSize: '13px' },
   sectionTitle: { fontSize: '17px', color: '#2D2020', margin: '0 0 14px', fontWeight: '700' },
-  grid:        { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' },
+  grid:        { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '16px' },
   tabs:        { display: 'flex', gap: '4px', borderBottom: '2px solid #EDE0D8', marginBottom: '28px', flexWrap: 'wrap' },
   tabBtn:      { padding: '10px 20px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600', color: '#7A6060', borderBottom: '3px solid transparent', marginBottom: '-2px', display: 'flex', alignItems: 'center', gap: '6px' },
   tabActive:   { color: '#7A1428', borderBottomColor: '#7A1428' },

@@ -226,7 +226,7 @@ const styles = {
   emptyState: { textAlign: 'center', padding: '80px 20px' },
   emptyTitle: { fontSize: '22px', color: '#5C3D2E', marginBottom: '8px' },
   emptyDesc: { color: '#7A6060', fontSize: '15px' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, calc(50vw - 24px)), 1fr))', gap: '16px' },
   photoCard: {
     background: 'white', borderRadius: '14px',
     overflow: 'hidden',
@@ -253,7 +253,7 @@ const styles = {
   meta: { fontSize: '12px', color: '#C4956A' },
   guestTag: { background: '#F7EDE0', color: '#5C3D2E', fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: '500' },
   downloadBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#C4956A' },
-  iconBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#C4956A', padding: '2px 4px' },
+  iconBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#C4956A', padding: '10px', minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   shareBtn: {
     background: '#7A1428', border: 'none', color: 'white',
     padding: '10px 18px', borderRadius: '20px',
@@ -264,7 +264,7 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px',
   },
   lightboxInner: {
-    background: 'white', borderRadius: '20px', padding: '28px',
+    background: 'white', borderRadius: '20px', padding: 'clamp(16px, 4vw, 28px)',
     maxWidth: '640px', width: '100%', maxHeight: '92vh', overflow: 'auto', position: 'relative',
   },
   closeBtn: {

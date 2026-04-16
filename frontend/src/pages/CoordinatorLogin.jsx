@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signIn, confirmSignIn } from '../utils/auth';
+import { login, confirmSignIn } from '../utils/auth';
 
 export default function CoordinatorLogin() {
   const [view, setView] = useState('login'); // 'login' | 'newpassword'
@@ -8,6 +8,7 @@ export default function CoordinatorLogin() {
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [nameValue, setNameValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function CoordinatorLogin() {
     setLoading(true);
     setError('');
     try {
-      const result = await signIn(email.trim(), password);
+      const result = await login(email.trim(), password);
       if (result?.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
         setView('newpassword');
       } else {
@@ -43,7 +44,10 @@ export default function CoordinatorLogin() {
     setLoading(true);
     setError('');
     try {
-      await confirmSignIn({ challengeResponse: newPassword });
+      await confirmSignIn({
+        challengeResponse: newPassword,
+        options: { userAttributes: { name: nameValue.trim() || email.trim() } },
+      });
       navigate('/coordinator/dashboard');
     } catch (err) {
       setError(err.message || 'Failed to set new password.');
@@ -99,6 +103,16 @@ export default function CoordinatorLogin() {
             <p style={styles.infoBox}>
               This is your first login. Please set a new permanent password.
             </p>
+            <div className="form-group">
+              <label>Your Full Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Halima Musa"
+                value={nameValue}
+                onChange={e => { setNameValue(e.target.value); setError(''); }}
+                required
+              />
+            </div>
             <div className="form-group">
               <label>New Password</label>
               <input

@@ -59,9 +59,16 @@ export default function AdminLogin() {
       setError('Password must be at least 8 characters.');
       return;
     }
+    if (!form.name || !form.name.trim()) {
+      setError('Please enter your name.');
+      return;
+    }
     setLoading(true); setError('');
     try {
-      await confirmSignIn({ challengeResponse: form.newPassword });
+      await confirmSignIn({
+        challengeResponse: form.newPassword,
+        options: { userAttributes: { name: form.name.trim() } },
+      });
       await redirectAfterLogin(navigate);
     } catch (err) {
       setError(err.message || 'Failed to set new password. Please try again.');
@@ -139,6 +146,11 @@ export default function AdminLogin() {
         {/* ── Set new password (temp password expired) ── */}
         {view === 'newpassword' && (
           <form onSubmit={handleNewPassword}>
+            <div className="form-group">
+              <label>Your Full Name</label>
+              <input type="text" placeholder="e.g. Bamai Patrick" value={form.name || ''}
+                onChange={e => setForm({ ...form, name: e.target.value })} required />
+            </div>
             <div className="form-group">
               <label>New Password</label>
               <input type="password" placeholder="Min 8 characters" value={form.newPassword}

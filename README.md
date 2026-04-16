@@ -1,200 +1,175 @@
-# 💒 Wedding Photo Platform
+# Cherish — Wedding Day Companion Platform
 
-> **Serverless AI-Powered Wedding Photo Sharing & Retrieval Platform on AWS**
+> A fully serverless, AI-powered wedding event platform deployed on AWS. Handles guest photo sharing with facial recognition, digital event programmes, role-based ticketing, and multi-tier coordinator management — all under a custom domain, shipped for a live event.
 
-A fully serverless platform that lets wedding guests upload photos, find every photo they appear in using a selfie, and automatically receive curated couple photos — all powered by AWS Rekognition facial recognition.
-
-[![AWS](https://img.shields.io/badge/AWS-Serverless-orange)](https://aws.amazon.com)
-[![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC)](https://terraform.io)
-[![Python](https://img.shields.io/badge/Lambda-Python_3.11-blue)](https://python.org)
-[![React](https://img.shields.io/badge/Frontend-React_18-61DAFB)](https://react.dev)
+**Live:** [bamai-kazah.pkweddings.com.ng](https://bamai-kazah.pkweddings.com.ng)
 
 ---
 
-## 📸 What It Does
+## What It Does
 
-| Feature | How |
-|---|---|
-| Guest photo upload | Mobile-friendly drag & drop or camera capture |
-| AI face search | Upload a selfie → find every photo you're in |
-| Couple photo alerts | Auto-email all guests when the couple appears in a new photo |
-| Secure downloads | Time-limited presigned S3 URLs |
-| Guest auth | Cognito email/password registration |
+Cherish was built and deployed for a live Catholic wedding (450+ guests). It replaced paper programmes, printed photo albums, and manual check-in with a real-time mobile-first web application that guests could use directly from their phones — no app download required.
 
 ---
 
-## 🏗️ Architecture
+## Features
+
+### Guest-Facing
+| Feature | Description |
+|---------|-------------|
+| **AI Photo Matching** | Guest uploads a selfie → system searches every event photo using face recognition → returns every image they appear in |
+| **Bulk Photo Upload** | Drag-and-drop upload with automatic face indexing via Rekognition |
+| **Digital Programme** | Full ceremony guide: Mass timeline, order of reception, order of photographs, and all church readings (tabbed, mobile-optimised) |
+| **Guest Tickets** | QR-code attendance tickets generated as downloadable PDFs with WhatsApp delivery notification |
+| **Photo Gallery** | Browse the full event gallery |
+
+### Staff & Admin
+| Feature | Description |
+|---------|-------------|
+| **4-Tier RBAC** | Guest → Coordinator → Admin → Super Admin, enforced via Cognito Groups + JWT |
+| **Coordinator Dashboard** | Ticket quota management with live usage tracking per coordinator |
+| **Admin Dashboard** | Full guest list, manual ticket issuance, coordinator management |
+| **QR Check-in** | Scan guest QR codes at the venue door using the device camera |
+| **Email Notifications** | AWS SES triggers on registration, ticket issuance, and coordinator actions |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite 5, React Router v6 |
+| Auth | AWS Cognito (User Pools + Groups) |
+| API | AWS API Gateway (HTTP API) |
+| Compute | AWS Lambda — Python 3.12 (7 functions) |
+| AI / ML | AWS Rekognition (face detection, collection indexing, face search) |
+| Storage | AWS S3 (photos + frontend static assets) |
+| CDN | AWS CloudFront (edge delivery, SSL termination, custom domain) |
+| Email | AWS SES (transactional notifications) |
+| IaC | Terraform (fully parameterised, multi-event capable) |
+| PDF | jsPDF + html2canvas (client-side ticket generation) |
+| QR Codes | qrcode, html5-qrcode |
+
+---
+
+## Architecture
 
 ```
-Guests (mobile browser)
-        │
-        ▼
-  CloudFront CDN  ◄── Serves frontend + proxies /api/*
-        │
-   ┌────┴────────────────────────┐
-   │                             │
-S3 Frontend Bucket        API Gateway (HTTP API)
-   (React app)                   │
-                          ┌──────┴──────────────────────┐
-                          │                             │
-                   POST /upload                   POST /search
-                          │                             │
-                   upload_handler               search_handler
-                   Lambda                       Lambda
-                          │                             │
-                          ▼                             ▼
-                   S3 Photos Bucket         Rekognition SearchFacesByImage
-                          │                             │
-                          ▼                             ▼
-                   Rekognition              DynamoDB faces table
-                   IndexFaces              → presigned S3 URLs
-                          │
-                          ▼ (S3 trigger, async)
-                   couple_detector Lambda
-                          │
-                          ▼ (if couple found)
-                   SNS Topic
-                          │
-                          ▼
-                   email_notifier Lambda
-                          │
-                          ▼
-                   SES → Guest emails
+                        ┌──────────────────────────────┐
+                        │     Browser (React 18 SPA)    │
+                        └──────────────┬───────────────┘
+                                       │
+                        ┌──────────────▼───────────────┐
+                        │   CloudFront CDN (HTTPS)      │
+                        │   custom domain + ACM cert    │
+                        └──────┬───────────────┬────────┘
+                               │               │
+                    ┌──────────▼──┐     ┌──────▼──────────┐
+                    │  S3 Bucket  │     │  API Gateway     │
+                    │  (frontend) │     │  (HTTP API)      │
+                    └─────────────┘     └──────┬──────────┘
+                                               │
+             ┌─────────────────────────────────┼────────────────────┐
+             │                │                │                    │
+     ┌───────▼──────┐ ┌───────▼──────┐ ┌──────▼───────┐ ┌─────────▼──────┐
+     │upload_handler│ │search_handler│ │tickets_handler│ │coordinators_   │
+     │              │ │              │ │               │ │handler         │
+     │S3 + Rekognit.│ │Rekognition   │ │DynamoDB       │ │DynamoDB        │
+     │face indexing │ │face search   │ │ticket store   │ │quota mgmt      │
+     └──────────────┘ └──────────────┘ └───────────────┘ └────────────────┘
+             │
+     ┌───────▼──────────────────────────────────┐
+     │  AWS Cognito User Pool                    │
+     │  Groups: guests / coordinators /          │
+     │          admins / superadmins             │
+     └──────────────────────────────────────────┘
 ```
+
+**Lambda Functions:**
+- `upload_handler` — stores photos in S3, triggers Rekognition face indexing into a per-event collection
+- `search_handler` — accepts a selfie, runs `SearchFacesByImage` against the collection, returns matched photo URLs
+- `couple_detector` — indexes the couple's reference photos for gallery filtering
+- `tickets_handler` — creates, retrieves, and validates QR-code attendance tickets
+- `coordinators_handler` — manages coordinator accounts, quota assignments, and usage tracking
+- `email_notifier` — SES-based transactional email on trigger events
+- `pre_signup` — Cognito pre-signup trigger for the passwordless guest registration flow
 
 ---
 
-## 🛠️ Tech Stack
+## Infrastructure as Code
 
-| Layer | Technology | Why |
-|---|---|---|
-| Infrastructure | Terraform | Reproducible, version-controlled IaC |
-| Compute | AWS Lambda (Python 3.11) | Serverless, pay-per-use |
-| Storage | Amazon S3 | Durable, cheap object storage |
-| AI/ML | AWS Rekognition | Managed facial recognition, no ML expertise needed |
-| Database | Amazon DynamoDB | Serverless NoSQL, fast face lookups |
-| API | API Gateway v2 (HTTP API) | ~70% cheaper than REST API |
-| Auth | Amazon Cognito | Managed user authentication |
-| CDN | Amazon CloudFront | Global edge delivery, HTTPS |
-| Notifications | Amazon SNS + SES | Decoupled email pipeline |
-| Frontend | React 18 + React Router | Component-based, SPA routing |
-
----
-
-## 📁 Project Structure
-
-```
-wedding-photo-platform/
-├── terraform/                  # All infrastructure as code
-│   ├── main.tf                 # Root module (wires everything together)
-│   ├── variables.tf            # Input variables
-│   ├── outputs.tf              # Important URLs & IDs after deploy
-│   ├── providers.tf            # AWS provider config
-│   ├── backend.tf              # S3 remote state config
-│   └── modules/
-│       ├── storage/            # S3 buckets
-│       ├── database/           # DynamoDB tables
-│       ├── rekognition/        # Face collection
-│       ├── auth/               # Cognito user pool
-│       ├── lambdas/            # Lambda functions + IAM
-│       ├── api/                # API Gateway routes
-│       ├── cdn/                # CloudFront distribution
-│       └── notifications/      # SNS + SES
-├── lambdas/
-│   ├── upload_handler/         # Photo upload + face indexing
-│   ├── search_handler/         # Selfie face search
-│   ├── couple_detector/        # Couple presence detection
-│   └── email_notifier/         # Guest email notifications
-├── frontend/
-│   └── src/
-│       ├── pages/              # Home, Register, Upload, Search, Gallery
-│       ├── components/         # Navbar
-│       └── utils/              # API calls, auth helpers
-└── docs/
-    ├── DEPLOYMENT.md           # Step-by-step setup guide
-    └── API.md                  # API reference
-```
-
----
-
-## 🚀 Quick Start
-
-**Prerequisites:** AWS CLI, Terraform ≥1.5, Node.js ≥18, Python 3.11
+The entire AWS stack is defined in Terraform and fully parameterised for multi-event reuse. A single `terraform apply` provisions an isolated environment — separate Cognito pool, S3 bucket, Rekognition collection, and CloudFront distribution — with no shared state between events.
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/Emmypat/wedding-photo-platform.git
-cd wedding-photo-platform
-
-# 2. Configure Terraform
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
-
-# 3. Deploy infrastructure
-terraform init
-terraform plan
-terraform apply
-
-# 4. Deploy frontend
-cd ../frontend
-npm install
-cp .env.example .env.local
-# Fill .env.local with values from `terraform output`
-npm run build
-aws s3 sync build/ s3://$(cd ../terraform && terraform output -raw frontend_bucket_name)
+terraform apply \
+  -var="project_name=wp-bamai-kazah" \
+  -var="couple_name=Bamai & Kazah" \
+  -var="wedding_date=2026-04-11" \
+  -var="domain_name=bamai-kazah.pkweddings.com.ng" \
+  -var="certificate_arn=arn:aws:acm:us-east-1:..."
 ```
 
-See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the complete step-by-step guide.
+---
+
+## Deployment
+
+```bash
+# Full stack: infrastructure + frontend + admin user
+bash scripts/deploy-wedding.sh \
+  --slug    bamai-kazah \
+  --couple  "Bamai & Kazah" \
+  --date    2026-04-11 \
+  --email   couple@example.com \
+  --admin   admin@example.com
+
+# Frontend-only redeploy
+cd frontend && npm run build
+aws s3 sync build/ s3://<frontend-bucket> --delete
+aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
+```
 
 ---
 
-## 💰 Estimated Cost
+## Project Structure
 
-For a typical 100-person wedding with ~500 photos:
-
-| Service | Estimated Cost |
-|---|---|
-| Lambda invocations | ~$0.00 (within free tier) |
-| S3 storage (500 photos @ 5MB avg) | ~$0.13/month |
-| Rekognition (face indexing + search) | ~$1.00 total |
-| API Gateway | ~$0.01 |
-| CloudFront | ~$0.01 |
-| DynamoDB | ~$0.00 (PAY_PER_REQUEST, free tier) |
-| SES emails (500 guests × 5 alerts) | ~$0.00 (within free tier) |
-| **Total** | **~$1.25 for the whole event** |
-
----
-
-## 🔒 Security
-
-- All S3 buckets are **private** — no public access
-- Photos served via **time-limited presigned URLs** (48h by default)
-- API Gateway requires **Cognito JWT auth** on all routes except `/health`
-- **Selfies are never stored** — used in-memory for search only
-- All data encrypted at rest (S3 SSE-S3, DynamoDB SSE)
-- CloudFront enforces **HTTPS-only** (HTTP → HTTPS redirect)
-
----
-
-## 📖 Documentation
-
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [API Reference](docs/API.md)
+```
+├── frontend/                   # React + Vite SPA
+│   └── src/
+│       ├── pages/              # Home, Upload, Search, Gallery, Admin, Coordinator, Tickets
+│       ├── components/         # Navbar, route guards
+│       └── utils/              # Auth helpers, Axios API client
+├── lambdas/                    # Python Lambda functions
+│   ├── upload_handler/
+│   ├── search_handler/
+│   ├── tickets_handler/
+│   ├── coordinators_handler/
+│   ├── couple_detector/
+│   ├── email_notifier/
+│   └── pre_signup/
+├── terraform/                  # Full AWS infrastructure as code
+│   └── modules/
+│       ├── cdn/                # CloudFront + S3 frontend
+│       ├── api/                # API Gateway + Lambda integrations
+│       ├── auth/               # Cognito User Pool + Groups
+│       └── storage/            # S3 photo buckets + Rekognition collection
+└── scripts/                    # Deployment automation
+    ├── deploy-wedding.sh       # One-command full deployment
+    └── setup-superadmins.sh   # Superadmin provisioning
+```
 
 ---
 
-## 🌟 Portfolio Notes
+## Highlights
 
-This project demonstrates:
-- **Serverless architecture** on AWS with zero server management
-- **Event-driven design** (S3 → Lambda → SNS → Lambda pipeline)
-- **AI/ML integration** (AWS Rekognition facial recognition)
-- **Infrastructure as Code** with Terraform modules and best practices
-- **Security best practices** (least-privilege IAM, private S3, JWT auth)
-- **Cost-optimised design** (PAY_PER_REQUEST DynamoDB, lifecycle rules, reserved concurrency)
-- **Modern React** frontend with mobile-first design
+- **Production-deployed** — used by 450+ guests at a live event on 11 April 2026
+- **AI-powered photo retrieval** — sub-2s face search across hundreds of uploaded photos using AWS Rekognition
+- **Fully serverless** — zero server management; scales automatically from zero to peak event traffic
+- **One-command multi-tenant deployment** — each wedding gets a completely isolated AWS environment from a single Terraform configuration
+- **4-tier RBAC** — Cognito Group-based access control with JWT inspection at the Lambda layer
+- **Mobile-first** — designed for guests on phones, in church pews, with no app to download
 
 ---
 
-*Built with ❤️ and a lot of serverless magic.*
+## Author
+
+Built by **Yerima Shettima** · [GitHub @Emmypat](https://github.com/Emmypat)

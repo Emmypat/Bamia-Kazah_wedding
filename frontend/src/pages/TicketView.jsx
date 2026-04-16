@@ -200,7 +200,7 @@ const styles = {
   ticketSection: { maxWidth: '480px', margin: '0 auto' },
 
   selfieOnCard: {
-    width: '300px', height: '300px', borderRadius: '50%',
+    width: 'clamp(180px, 65vw, 300px)', height: 'clamp(180px, 65vw, 300px)', borderRadius: '50%',
     objectFit: 'cover', objectPosition: 'center top',
     border: '4px solid #C4956A',
     boxShadow: '0 0 0 6px rgba(196,149,106,0.2), 0 8px 32px rgba(0,0,0,0.4)',
@@ -279,7 +279,7 @@ const styles = {
     borderRadius: '12px', padding: '14px 18px', marginBottom: '20px',
   },
 
-  ticketActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px' },
+  ticketActions: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: '8px' },
   actionBtn: { padding: '12px', fontSize: '13px', justifyContent: 'center', fontWeight: '600' },
   whatsappBtn: { background: '#25D366', border: 'none', color: 'white', borderRadius: '50px', cursor: 'pointer' },
   actionBtn2: {

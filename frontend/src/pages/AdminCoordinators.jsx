@@ -308,7 +308,7 @@ export default function AdminCoordinators() {
                         ) : (
                           data.enhancements.map(en => (
                             <div key={en.id} style={styles.enhRow}>
-                              <span style={{ color: '#4ade80', fontWeight: 700 }}>+{en.added}</span>
+                              <span style={{ color: en.ticketsAdded >= 0 ? '#4ade80' : '#f87171', fontWeight: 700 }}>{en.ticketsAdded >= 0 ? '+' : ''}{en.ticketsAdded}</span>
                               <span style={{ color: '#7A6060', fontSize: '12px' }}>{en.reason || 'No reason given'}</span>
                               <span style={{ color: '#9A8080', fontSize: '11px' }}>{formatDate(en.createdAt)}</span>
                             </div>
@@ -372,7 +372,7 @@ const styles = {
   },
   sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' },
   sectionTitle: { margin: 0, fontSize: '17px', color: '#2D2020' },
-  formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0 20px' },
+  formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: '0 20px' },
 
   emptyState: {
     textAlign: 'center', padding: '48px 24px',

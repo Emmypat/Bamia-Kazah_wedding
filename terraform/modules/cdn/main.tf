@@ -164,5 +164,5 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
 }
 
 data "aws_cloudfront_origin_request_policy" "all_viewer" {
-  name = "Managed-AllViewer"
+  name = "Managed-AllViewerExceptHostHeader"
 }

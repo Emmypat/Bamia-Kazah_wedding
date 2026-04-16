@@ -35,13 +35,15 @@ from datetime import datetime
 
 s3        = boto3.client('s3')
 cognito   = boto3.client('cognito-idp')
+ses       = boto3.client('ses', region_name=os.environ.get('AWS_REGION', 'eu-west-1'))
 dynamodb  = boto3.resource('dynamodb')
 
-TICKETS_TABLE       = os.environ['TICKETS_TABLE']
-PHOTOS_BUCKET       = os.environ['PHOTOS_BUCKET']
-PREAPPROVED_TABLE   = os.environ.get('PREAPPROVED_TABLE', '')
-COORDINATOR_TABLE   = os.environ.get('COORDINATOR_TABLE', '')
+TICKETS_TABLE        = os.environ['TICKETS_TABLE']
+PHOTOS_BUCKET        = os.environ['PHOTOS_BUCKET']
+PREAPPROVED_TABLE    = os.environ.get('PREAPPROVED_TABLE', '')
+COORDINATOR_TABLE    = os.environ.get('COORDINATOR_TABLE', '')
 COGNITO_USER_POOL_ID = os.environ.get('COGNITO_USER_POOL_ID', '')
+FROM_EMAIL           = os.environ.get('FROM_EMAIL', '')
 
 DEFAULT_IMAGE_KEY = 'tickets/default-wedding-image.jpg'
 
@@ -196,6 +198,45 @@ def upload_image_b64(selfie_b64, content_type, key):
         ContentType=content_type,
     )
     return key
+
+
+# ── Quota exhaustion alert ─────────────────────────────────────
+
+def _send_quota_exhausted_alert(coordinator_name, quota):
+    """Email all super admins when a coordinator uses their last ticket."""
+    if not FROM_EMAIL or not COGNITO_USER_POOL_ID:
+        return
+    try:
+        resp = cognito.list_users_in_group(
+            UserPoolId=COGNITO_USER_POOL_ID,
+            GroupName='superadmins',
+        )
+        admin_emails = [
+            next((a['Value'] for a in u['Attributes'] if a['Name'] == 'email'), None)
+            for u in resp.get('Users', [])
+        ]
+        admin_emails = [e for e in admin_emails if e]
+    except Exception as ex:
+        print(f'[WARN] Could not list superadmins for quota alert: {ex}')
+        return
+    if not admin_emails:
+        return
+    subject = f'Coordinator quota exhausted — {coordinator_name}'
+    text = (
+        f'{coordinator_name} has used all {quota} of their ticket quota and can no longer '
+        f'issue tickets. Log in to the admin panel to grant them more tickets.'
+    )
+    try:
+        ses.send_email(
+            Source=FROM_EMAIL,
+            Destination={'ToAddresses': admin_emails},
+            Message={
+                'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                'Body': {'Text': {'Data': text, 'Charset': 'UTF-8'}},
+            },
+        )
+    except Exception as ex:
+        print(f'[WARN] Failed to send quota exhausted alert: {ex}')
 
 
 # ── Route handlers ──────────────────────────────────────────────
@@ -540,9 +581,11 @@ def add_preapproved(event):
     if not phones_raw:
         return respond(400, {'error': 'phone or phones[] is required'})
 
-    table = dynamodb.Table(PREAPPROVED_TABLE)
+    preapproved_table = dynamodb.Table(PREAPPROVED_TABLE)
+    tickets_table = dynamodb.Table(TICKETS_TABLE)
     now = datetime.utcnow().isoformat() + 'Z'
     added = []
+    auto_approved = []
 
     for i, ph in enumerate(phones_raw):
         normalized = normalize_phone(str(ph).strip())
@@ -557,10 +600,22 @@ def add_preapproved(event):
             'used':       False,
             'used_at':    None,
         }
-        table.put_item(Item=record)
+        preapproved_table.put_item(Item=record)
         added.append({'id': record['id'], 'phone': normalized, 'guestName': name})
 
-    return respond(200, {'added': added, 'count': len(added)})
+        # Auto-approve any existing pending ticket for this phone
+        existing = find_ticket_by_phone(normalized)
+        if existing and existing.get('status') == 'pending':
+            tickets_table.update_item(
+                Key={'ticketId': existing['ticketId']},
+                UpdateExpression='SET #s = :approved, approved_by = :by, approved_at = :now',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={':approved': 'approved', ':by': 'auto', ':now': now},
+            )
+            mark_preapproval_used(record['id'])
+            auto_approved.append(existing['ticketId'])
+
+    return respond(200, {'added': added, 'count': len(added), 'auto_approved': auto_approved})
 
 
 def remove_preapproved(event, preapprove_id):
@@ -634,7 +689,7 @@ def issue_ticket(event):
             return respond(500, {'error': 'Coordinator table not configured'})
         coord_table = dynamodb.Table(COORDINATOR_TABLE)
         coord = coord_table.get_item(Key={'userId': issuer_id}).get('Item')
-        if not coord or not coord.get('active', True):
+        if not coord or not coord.get('isActive', True):
             return respond(403, {'error': 'Coordinator account not found or inactive.'})
         quota_used  = int(coord.get('quotaUsed', 0))
         quota_total = int(coord.get('quotaTotal', 0))
@@ -725,6 +780,9 @@ def issue_ticket(event):
                 UpdateExpression='SET quotaUsed = quotaUsed + :one',
                 ExpressionAttributeValues={':one': 1},
             )
+            # Alert super admins if quota is now exhausted
+            if quota_used + 1 >= quota_total:
+                _send_quota_exhausted_alert(issuer_name, quota_total)
         except Exception as e:
             print(f'[WARN] Failed to increment coordinator quota: {e}')
 

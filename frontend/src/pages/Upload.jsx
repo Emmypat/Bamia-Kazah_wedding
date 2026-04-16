@@ -249,7 +249,7 @@ const styles = {
   sectionTitle: { fontSize: '16px', color: '#2D2020', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' },
   uploadingBadge: { background: '#F5E6E9', color: '#7A1428', fontSize: '12px', padding: '3px 10px', borderRadius: '20px', fontWeight: '600' },
   clearBtn: { background: 'none', border: 'none', color: '#C4956A', fontSize: '13px', cursor: 'pointer', fontWeight: '500' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(140px, calc(50vw - 20px)), 1fr))', gap: '12px' },
   fileCard: { border: '1px solid #EDE0D8', borderRadius: '10px', overflow: 'hidden', background: '#FDF6EE' },
   thumbWrap: { position: 'relative', height: '110px' },
   thumb: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
@@ -280,7 +280,7 @@ const styles = {
   statusDone: { fontSize: '12px', color: '#166534', fontWeight: '600' },
   statusDuplicate: { fontSize: '12px', color: '#92400E', fontWeight: '600' },
   statusError: { fontSize: '12px', color: '#9B1C1C', fontWeight: '600' },
-  removeBtn: { background: 'none', border: 'none', color: '#C4956A', fontSize: '12px', cursor: 'pointer', padding: 0 },
+  removeBtn: { background: 'none', border: 'none', color: '#C4956A', fontSize: '12px', cursor: 'pointer', padding: '8px', minHeight: '36px', minWidth: '36px' },
   actionRow: { display: 'flex', gap: '16px', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap' },
   addMoreBtn: {
     display: 'inline-block', background: 'none', border: '1.5px dashed #C4956A',

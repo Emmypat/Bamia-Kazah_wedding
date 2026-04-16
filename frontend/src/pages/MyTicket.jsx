@@ -207,7 +207,7 @@ const styles = {
   ticketSection: { maxWidth: '480px', margin: '0 auto' },
 
   selfieOnCard: {
-    width: '300px', height: '300px', borderRadius: '50%',
+    width: 'clamp(180px, 65vw, 300px)', height: 'clamp(180px, 65vw, 300px)', borderRadius: '50%',
     objectFit: 'cover', objectPosition: 'center top',
     border: '4px solid #C4956A',
     boxShadow: '0 0 0 6px rgba(196,149,106,0.2), 0 8px 32px rgba(0,0,0,0.4)',

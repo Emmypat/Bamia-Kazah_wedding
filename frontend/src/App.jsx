@@ -16,6 +16,7 @@ import TicketView from './pages/TicketView';
 import ScanTicket from './pages/ScanTicket';
 import CoordinatorLogin from './pages/CoordinatorLogin';
 import CoordinatorDashboard from './pages/CoordinatorDashboard';
+import Program from './pages/Program';
 import { isAuthenticated, getCurrentUser, getAccessToken } from './utils/auth';
 import './App.css';
 
@@ -95,6 +96,29 @@ function CoordinatorRoute({ children }) {
   return allowed ? children : <Navigate to="/coordinator/login" replace />;
 }
 
+function Footer() {
+  return (
+    <footer style={{
+      borderTop: '1px solid #EDE0D8',
+      padding: '18px 24px',
+      textAlign: 'center',
+      background: 'white',
+    }}>
+      <p style={{
+        margin: 0,
+        fontSize: '11px',
+        letterSpacing: '2.5px',
+        textTransform: 'uppercase',
+        color: '#C4956A',
+        fontWeight: '600',
+        fontFamily: 'system-ui, sans-serif',
+      }}>
+        Cherish &nbsp;·&nbsp; Powered by Yerima Shettima
+      </p>
+    </footer>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -103,6 +127,7 @@ export default function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home />} />
+          <Route path="/program" element={<Program />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin-login" element={<AdminLogin />} />
@@ -144,6 +169,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Footer />
     </BrowserRouter>
   );
 }

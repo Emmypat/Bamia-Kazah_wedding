@@ -61,10 +61,9 @@ export default function Navbar() {
             </>
           ) : user ? (
             <>
+              <Link to="/program" style={styles.link}>Programme</Link>
               <Link to="/upload" style={styles.link}>Upload</Link>
               <Link to="/search" style={styles.link}>Find My Photos</Link>
-              <Link to="/get-ticket" style={styles.link}>Get Ticket</Link>
-              <Link to="/my-ticket" style={styles.link}>My Ticket</Link>
               <Link to="/gallery" style={styles.link}>
                 {isAdmin ? 'All Photos' : 'My Gallery'}
               </Link>
@@ -79,8 +78,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/get-ticket" style={styles.link}>🎟️ Get Ticket</Link>
-              <Link to="/my-ticket" style={styles.link}>My Ticket</Link>
+              <Link to="/program" style={styles.link}>Programme</Link>
               <Link to="/login" style={styles.link}>Sign In</Link>
               <Link to="/register" className="btn btn-primary" style={styles.registerBtn}>Register</Link>
             </>
@@ -105,10 +103,9 @@ export default function Navbar() {
             </>
           ) : user ? (
             <>
+              <Link to="/program" style={styles.mobileLink}>Programme</Link>
               <Link to="/upload" style={styles.mobileLink}>Upload</Link>
               <Link to="/search" style={styles.mobileLink}>Find My Photos</Link>
-              <Link to="/get-ticket" style={styles.mobileLink}>🎟️ Get Ticket</Link>
-              <Link to="/my-ticket" style={styles.mobileLink}>My Ticket</Link>
               <Link to="/gallery" style={styles.mobileLink}>{isAdmin ? 'All Photos' : 'My Gallery'}</Link>
               {isAdmin && (
                 <>
@@ -121,8 +118,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/get-ticket" style={styles.mobileLink}>🎟️ Get Ticket</Link>
-              <Link to="/my-ticket" style={styles.mobileLink}>My Ticket</Link>
+              <Link to="/program" style={styles.mobileLink}>Programme</Link>
               <Link to="/login" style={styles.mobileLink}>Sign In</Link>
               <Link to="/register" style={styles.mobileLink}>Register</Link>
             </>
@@ -154,7 +150,7 @@ const styles = {
   logo: { textDecoration: 'none', display: 'flex', flexDirection: 'column', lineHeight: 1.2 },
   logoMain: {
     fontFamily: "'Cormorant Garamond', Georgia, serif",
-    fontSize: '20px',
+    fontSize: 'clamp(15px, 4vw, 20px)',
     fontWeight: '600',
     color: '#7A1428',
     letterSpacing: '0.5px',
@@ -206,12 +202,15 @@ const styles = {
   },
   mobileLink: {
     display: 'block',
-    padding: '14px 24px',
+    padding: '14px clamp(16px, 4vw, 24px)',
     textDecoration: 'none',
     color: '#5C3D2E',
     fontSize: '15px',
     borderBottom: '1px solid #F7EDE0',
     fontWeight: '500',
+    minHeight: '44px',
+    display: 'flex',
+    alignItems: 'center',
   },
   mobileLogout: {
     background: 'none',
